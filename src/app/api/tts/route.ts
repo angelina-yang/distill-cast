@@ -5,14 +5,14 @@ export const maxDuration = 60;
 
 export async function POST(req: NextRequest) {
   try {
-    const { text } = await req.json();
+    const { text, language } = await req.json();
     if (!text || typeof text !== "string") {
       return NextResponse.json({ error: "Text is required" }, { status: 400 });
     }
 
     const apiKey = req.headers.get("x-elevenlabs-api-key") || undefined;
     const voiceId = req.headers.get("x-elevenlabs-voice-id") || undefined;
-    const audioBuffer = await textToSpeech(text, apiKey, voiceId);
+    const audioBuffer = await textToSpeech(text, apiKey, voiceId, language || "en");
 
     const uint8 = new Uint8Array(audioBuffer);
     return new NextResponse(uint8, {

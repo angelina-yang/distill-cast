@@ -3,7 +3,8 @@ import { ElevenLabsClient } from "@elevenlabs/elevenlabs-js";
 export async function textToSpeech(
   text: string,
   apiKey?: string,
-  voiceId?: string
+  voiceId?: string,
+  language: string = "en"
 ): Promise<Buffer> {
   const key = apiKey || process.env.ELEVENLABS_API_KEY;
   if (!key) {
@@ -13,9 +14,12 @@ export async function textToSpeech(
   const client = new ElevenLabsClient({ apiKey: key });
   const voice = voiceId || process.env.ELEVENLABS_VOICE_ID || "s3TPKV1kjDlVtZbl4Ksh";
 
+  // Use multilingual model for non-English, turbo for English
+  const modelId = language === "en" ? "eleven_turbo_v2_5" : "eleven_multilingual_v2";
+
   const response = await client.textToSpeech.convert(voice, {
     text,
-    modelId: "eleven_turbo_v2_5",
+    modelId,
   });
 
   const reader = response.getReader();
