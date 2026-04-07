@@ -33,6 +33,14 @@ export default function Home() {
 
   const [settingsOpen, setSettingsOpen] = useState(false);
 
+  // Auto-open settings after registration if no keys set up yet
+  const handleRegistration = (name: string, email: string) => {
+    register(name, email);
+    if (!hasKeys) {
+      setSettingsOpen(true);
+    }
+  };
+
   const hasItems = items.length > 0;
   const hasReadyItems = items.some((i) => i.status === "ready");
 
@@ -159,7 +167,7 @@ export default function Home() {
 
       <WelcomeModal
         isOpen={!isRegistered}
-        onComplete={register}
+        onComplete={handleRegistration}
       />
     </div>
   );
