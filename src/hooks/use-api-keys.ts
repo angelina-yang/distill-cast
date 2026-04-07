@@ -20,6 +20,8 @@ export interface ApiKeys {
   elevenLabsApiKey: string;
   elevenLabsVoiceId: string;
   outputLanguage: OutputLanguage;
+  vipMode: boolean; // true = use server-side keys, skip API key requirement
+  keysValidated: boolean; // true = keys have been tested and work
 }
 
 const STORAGE_KEY = "distill-cast-api-keys";
@@ -27,8 +29,10 @@ const STORAGE_KEY = "distill-cast-api-keys";
 const DEFAULTS: ApiKeys = {
   claudeApiKey: "",
   elevenLabsApiKey: "",
-  elevenLabsVoiceId: "s3TPKV1kjDlVtZbl4Ksh",
+  elevenLabsVoiceId: "",
   outputLanguage: "en",
+  vipMode: false,
+  keysValidated: false,
 };
 
 export function useApiKeys() {
@@ -62,7 +66,8 @@ export function useApiKeys() {
     localStorage.removeItem(STORAGE_KEY);
   }, []);
 
-  const hasKeys = Boolean(keys.claudeApiKey && keys.elevenLabsApiKey);
+  // User is ready if: VIP mode OR both keys are validated
+  const hasKeys = keys.vipMode || (Boolean(keys.claudeApiKey && keys.elevenLabsApiKey) && keys.keysValidated);
 
   return { keys, hasKeys, loaded, saveKeys, clearKeys };
 }
