@@ -1,11 +1,12 @@
 import Anthropic from "@anthropic-ai/sdk";
-import { SUMMARIZE_PROMPT, buildSummarizeMessages } from "./prompts";
+import { buildSystemPrompt, buildSummarizeMessages } from "./prompts";
 
 export async function summarize(
   title: string,
   content: string,
   type: "youtube" | "article",
-  apiKey?: string
+  apiKey?: string,
+  language: string = "en"
 ): Promise<string> {
   const key = apiKey || process.env.CLAUDE_API_KEY;
   if (!key) {
@@ -17,8 +18,8 @@ export async function summarize(
   const response = await client.messages.create({
     model: "claude-sonnet-4-20250514",
     max_tokens: 4096,
-    system: SUMMARIZE_PROMPT,
-    messages: buildSummarizeMessages(title, content, type),
+    system: buildSystemPrompt(language),
+    messages: buildSummarizeMessages(title, content, type, language),
   });
 
   const textBlock = response.content.find((b) => b.type === "text");

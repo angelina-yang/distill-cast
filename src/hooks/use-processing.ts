@@ -45,7 +45,7 @@ async function processItem(
     const sumRes = await fetch("/api/summarize", {
       method: "POST",
       headers,
-      body: JSON.stringify({ title, content, type }),
+      body: JSON.stringify({ title, content, type, language: keys.outputLanguage }),
     });
     if (!sumRes.ok) {
       const err = await sumRes.json();
@@ -59,7 +59,7 @@ async function processItem(
     const introRes = await fetch("/api/tts", {
       method: "POST",
       headers,
-      body: JSON.stringify({ text: `Next up: ${title}` }),
+      body: JSON.stringify({ text: `Next up: ${title}`, language: keys.outputLanguage }),
     });
     let introAudioUrl: string | null = null;
     if (introRes.ok) {
@@ -71,7 +71,7 @@ async function processItem(
     const ttsRes = await fetch("/api/tts", {
       method: "POST",
       headers,
-      body: JSON.stringify({ text: summary }),
+      body: JSON.stringify({ text: summary, language: keys.outputLanguage }),
     });
     if (!ttsRes.ok) {
       throw new Error("TTS generation failed");

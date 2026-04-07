@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { ApiKeys } from "@/hooks/use-api-keys";
+import { ApiKeys, LANGUAGES } from "@/hooks/use-api-keys";
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -129,6 +129,30 @@ export function SettingsModal({
               >
                 elevenlabs.io/voice-library
               </a>
+            </p>
+          </div>
+
+          {/* Output Language */}
+          <div>
+            <label className="block text-sm font-medium text-zinc-300 mb-1.5">
+              Output Language
+            </label>
+            <select
+              value={form.outputLanguage}
+              onChange={(e) =>
+                setForm({ ...form, outputLanguage: e.target.value as ApiKeys["outputLanguage"] })
+              }
+              className="w-full px-3 py-2.5 bg-zinc-800 border border-zinc-700 rounded-lg text-white text-sm focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500"
+            >
+              {LANGUAGES.map((lang) => (
+                <option key={lang.code} value={lang.code}>
+                  {lang.flag} {lang.label}
+                </option>
+              ))}
+            </select>
+            <p className="mt-1 text-xs text-zinc-500">
+              Summaries will be generated in this language regardless of input language.
+              For non-English output, ElevenLabs multilingual model is used automatically.
             </p>
           </div>
 

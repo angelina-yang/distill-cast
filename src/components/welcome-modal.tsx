@@ -11,16 +11,29 @@ export function WelcomeModal({ isOpen, onComplete }: WelcomeModalProps) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [agreed, setAgreed] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   if (!isOpen) return null;
 
-  const canSubmit = name.trim() && email.trim() && email.includes("@") && agreed;
+  const canSubmit = name.trim() && email.trim() && email.includes("@") && agreed && !submitting;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (canSubmit) {
-      onComplete(name.trim(), email.trim());
+    if (!canSubmit) return;
+
+    setSubmitting(true);
+    try {
+      // Send to server to subscribe to Substack
+      await fetch("/api/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: name.trim(), email: email.trim() }),
+      });
+    } catch {
+      // Don't block registration if Substack fails
     }
+    setSubmitting(false);
+    onComplete(name.trim(), email.trim());
   };
 
   return (
@@ -75,7 +88,7 @@ export function WelcomeModal({ isOpen, onComplete }: WelcomeModalProps) {
               This is a free, non-commercial project built for fun. By signing
               up, you agree that your email will be added to the{" "}
               <a
-                href="https://twosetai.substack.com"
+                href="https://angelinayang.substack.com"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-violet-400 hover:text-violet-300"
@@ -92,7 +105,7 @@ export function WelcomeModal({ isOpen, onComplete }: WelcomeModalProps) {
             disabled={!canSubmit}
             className="w-full py-2.5 bg-violet-600 hover:bg-violet-500 disabled:bg-zinc-700 disabled:text-zinc-500 text-white font-medium rounded-lg transition-colors mt-2"
           >
-            Get Started
+            {submitting ? "Setting up..." : "Get Started"}
           </button>
         </form>
       </div>
