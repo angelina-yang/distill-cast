@@ -1,9 +1,16 @@
 import { ElevenLabsClient } from "@elevenlabs/elevenlabs-js";
 
+// Default English voice
+const DEFAULT_EN_VOICE = "s3TPKV1kjDlVtZbl4Ksh"; // Adam
+
+// Default multilingual voice — Rachel works well with eleven_multilingual_v2
+// across all supported languages including Chinese, Japanese, Korean, etc.
+const DEFAULT_MULTILINGUAL_VOICE = "21m00Tcm4TlvDq8ikWAM"; // Rachel
+
 export async function textToSpeech(
   text: string,
   apiKey?: string,
-  voiceId?: string,
+  userVoiceId?: string,
   language: string = "en"
 ): Promise<Buffer> {
   const key = apiKey || process.env.ELEVENLABS_API_KEY;
@@ -12,12 +19,23 @@ export async function textToSpeech(
   }
 
   const client = new ElevenLabsClient({ apiKey: key });
-  const voice = voiceId || process.env.ELEVENLABS_VOICE_ID || "s3TPKV1kjDlVtZbl4Ksh";
 
-  // Use multilingual model for non-English, turbo for English
-  const modelId = language === "en" ? "eleven_turbo_v2_5" : "eleven_multilingual_v2";
+  // For English, use user's voice or default Adam
+  // For other languages, use the language-specific default voice
+  // (user's voice ID is ignored for non-English to ensure natural pronunciation)
+  let voiceId: string;
+  let modelId: string;
 
-  const response = await client.textToSpeech.convert(voice, {
+  if (language === "en") {
+    voiceId = userVoiceId || process.env.ELEVENLABS_VOICE_ID || DEFAULT_EN_VOICE;
+    modelId = "eleven_turbo_v2_5";
+  } else {
+    // For non-English, use multilingual model with Rachel (or user's voice)
+    voiceId = userVoiceId || DEFAULT_MULTILINGUAL_VOICE;
+    modelId = "eleven_multilingual_v2";
+  }
+
+  const response = await client.textToSpeech.convert(voiceId, {
     text,
     modelId,
   });
