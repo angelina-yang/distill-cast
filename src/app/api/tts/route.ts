@@ -10,7 +10,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Text is required" }, { status: 400 });
     }
 
-    const audioBuffer = await textToSpeech(text);
+    const apiKey = req.headers.get("x-elevenlabs-api-key") || undefined;
+    const voiceId = req.headers.get("x-elevenlabs-voice-id") || undefined;
+    const audioBuffer = await textToSpeech(text, apiKey, voiceId);
 
     const uint8 = new Uint8Array(audioBuffer);
     return new NextResponse(uint8, {

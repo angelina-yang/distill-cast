@@ -13,7 +13,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const summary = await summarize(title || "Untitled", content, type || "article");
+    const apiKey = req.headers.get("x-claude-api-key") || undefined;
+    const summary = await summarize(title || "Untitled", content, type || "article", apiKey);
     return NextResponse.json({ summary });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Summarization failed";

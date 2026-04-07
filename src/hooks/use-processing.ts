@@ -2,15 +2,29 @@
 
 import { useState, useCallback } from "react";
 import { PlaylistItem, ItemStatus } from "@/types";
+import { ApiKeys } from "./use-api-keys";
 
 function generateId() {
   return Math.random().toString(36).slice(2, 10);
 }
 
+function buildHeaders(keys: ApiKeys) {
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+  if (keys.claudeApiKey) headers["x-claude-api-key"] = keys.claudeApiKey;
+  if (keys.elevenLabsApiKey) headers["x-elevenlabs-api-key"] = keys.elevenLabsApiKey;
+  if (keys.elevenLabsVoiceId) headers["x-elevenlabs-voice-id"] = keys.elevenLabsVoiceId;
+  return headers;
+}
+
 async function processItem(
   item: PlaylistItem,
+  keys: ApiKeys,
   updateItem: (id: string, updates: Partial<PlaylistItem>) => void
 ) {
+  const headers = buildHeaders(keys);
+
   try {
     // Step 1: Extract
     updateItem(item.id, { status: "extracting" });
@@ -30,7 +44,7 @@ async function processItem(
     updateItem(item.id, { status: "summarizing" });
     const sumRes = await fetch("/api/summarize", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers,
       body: JSON.stringify({ title, content, type }),
     });
     if (!sumRes.ok) {
@@ -44,7 +58,7 @@ async function processItem(
     updateItem(item.id, { status: "generating-audio" });
     const introRes = await fetch("/api/tts", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers,
       body: JSON.stringify({ text: `Next up: ${title}` }),
     });
     let introAudioUrl: string | null = null;
@@ -56,7 +70,7 @@ async function processItem(
     // Step 4: Generate TTS for summary
     const ttsRes = await fetch("/api/tts", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers,
       body: JSON.stringify({ text: summary }),
     });
     if (!ttsRes.ok) {
@@ -76,7 +90,7 @@ async function processItem(
   }
 }
 
-export function useProcessing() {
+export function useProcessing(keys: ApiKeys) {
   const [items, setItems] = useState<PlaylistItem[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
 
@@ -115,7 +129,7 @@ export function useProcessing() {
         while (active < maxConcurrency && queue.length > 0) {
           const item = queue.shift()!;
           active++;
-          processItem(item, updateItem).then(() => {
+          processItem(item, keys, updateItem).then(() => {
             active--;
             if (queue.length === 0 && active === 0) {
               setIsProcessing(false);
@@ -126,11 +140,10 @@ export function useProcessing() {
       }
       next();
     },
-    [updateItem]
+    [keys, updateItem]
   );
 
   const clearAll = useCallback(() => {
-    // Revoke blob URLs
     items.forEach((item) => {
       if (item.audioUrl) URL.revokeObjectURL(item.audioUrl);
       if (item.introAudioUrl) URL.revokeObjectURL(item.introAudioUrl);
