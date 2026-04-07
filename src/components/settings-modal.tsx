@@ -120,7 +120,8 @@ export function SettingsModal({
               className="w-full px-3 py-2.5 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-zinc-500 text-sm focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 font-mono"
             />
             <p className="mt-1 text-xs text-zinc-500">
-              Default: Adam. Browse voices at{" "}
+              Default: Adam (English). For non-English output, a multilingual
+              voice is used automatically. Browse voices at{" "}
               <a
                 href="https://elevenlabs.io/app/voice-library"
                 target="_blank"
