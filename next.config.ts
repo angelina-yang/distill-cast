@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  serverExternalPackages: ["@anthropic-ai/sdk", "@elevenlabs/elevenlabs-js"],
 };
 
 export default nextConfig;
