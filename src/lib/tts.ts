@@ -1,18 +1,23 @@
 import { ElevenLabsClient } from "@elevenlabs/elevenlabs-js";
 
-const client = new ElevenLabsClient({
-  apiKey: process.env.ELEVENLABS_API_KEY,
-});
+export async function textToSpeech(
+  text: string,
+  apiKey?: string,
+  voiceId?: string
+): Promise<Buffer> {
+  const key = apiKey || process.env.ELEVENLABS_API_KEY;
+  if (!key) {
+    throw new Error("ElevenLabs API key is required. Please add it in Settings.");
+  }
 
-export async function textToSpeech(text: string): Promise<Buffer> {
-  const voiceId = process.env.ELEVENLABS_VOICE_ID || "21m00Tcm4TlvDq8ikWAM";
+  const client = new ElevenLabsClient({ apiKey: key });
+  const voice = voiceId || process.env.ELEVENLABS_VOICE_ID || "s3TPKV1kjDlVtZbl4Ksh";
 
-  const response = await client.textToSpeech.convert(voiceId, {
+  const response = await client.textToSpeech.convert(voice, {
     text,
     modelId: "eleven_turbo_v2_5",
   });
 
-  // Response is a ReadableStream — read it via the reader API
   const reader = response.getReader();
   const chunks: Uint8Array[] = [];
   while (true) {

@@ -4,11 +4,15 @@ import { SUMMARIZE_PROMPT, buildSummarizeMessages } from "./prompts";
 export async function summarize(
   title: string,
   content: string,
-  type: "youtube" | "article"
+  type: "youtube" | "article",
+  apiKey?: string
 ): Promise<string> {
-  const client = new Anthropic({
-    apiKey: process.env.CLAUDE_API_KEY,
-  });
+  const key = apiKey || process.env.CLAUDE_API_KEY;
+  if (!key) {
+    throw new Error("Anthropic API key is required. Please add it in Settings.");
+  }
+
+  const client = new Anthropic({ apiKey: key });
 
   const response = await client.messages.create({
     model: "claude-sonnet-4-20250514",

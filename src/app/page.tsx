@@ -1,14 +1,21 @@
 "use client";
 
+import { useState } from "react";
 import { Header } from "@/components/header";
 import { UrlInput } from "@/components/url-input";
 import { SidebarPlaylist } from "@/components/sidebar-playlist";
 import { AudioPlayer } from "@/components/player/audio-player";
+import { SettingsModal } from "@/components/settings-modal";
+import { WelcomeModal } from "@/components/welcome-modal";
 import { useProcessing } from "@/hooks/use-processing";
 import { useAudioPlayer } from "@/hooks/use-audio-player";
+import { useApiKeys } from "@/hooks/use-api-keys";
+import { useUser } from "@/hooks/use-user";
 
 export default function Home() {
-  const { items, isProcessing, submitUrls, clearAll } = useProcessing();
+  const { isRegistered, loaded: userLoaded, register } = useUser();
+  const { keys, hasKeys, loaded, saveKeys, clearKeys } = useApiKeys();
+  const { items, isProcessing, submitUrls, clearAll } = useProcessing(keys);
   const {
     currentIndex,
     currentItem,
@@ -24,16 +31,25 @@ export default function Home() {
     seek,
   } = useAudioPlayer(items);
 
+  const [settingsOpen, setSettingsOpen] = useState(false);
+
   const hasItems = items.length > 0;
   const hasReadyItems = items.some((i) => i.status === "ready");
 
-  // Currently playing or finished item to show summary
   const displayItem =
     currentIndex >= 0 && items[currentIndex] ? items[currentIndex] : null;
 
+  // Don't render until localStorage is loaded
+  if (!loaded || !userLoaded) return null;
+
   return (
     <div className="min-h-screen bg-black text-white flex flex-col">
-      <Header onClear={clearAll} showClear={hasItems} />
+      <Header
+        onClear={clearAll}
+        showClear={hasItems}
+        onOpenSettings={() => setSettingsOpen(true)}
+        hasKeys={hasKeys}
+      />
 
       {!hasItems ? (
         <main className="flex-1 flex items-center justify-center px-4">
@@ -45,12 +61,19 @@ export default function Home() {
                 into a podcast-style audio briefing you can listen to on the go.
               </p>
             </div>
-            <UrlInput onSubmit={submitUrls} disabled={false} />
+            {!hasKeys && (
+              <button
+                onClick={() => setSettingsOpen(true)}
+                className="px-5 py-2.5 bg-violet-600 hover:bg-violet-500 text-white font-medium rounded-lg transition-colors"
+              >
+                Set up API Keys to get started
+              </button>
+            )}
+            {hasKeys && <UrlInput onSubmit={submitUrls} disabled={false} />}
           </div>
         </main>
       ) : (
         <div className="flex-1 flex min-h-0 pb-20">
-          {/* Sidebar playlist */}
           <SidebarPlaylist
             items={items}
             currentIndex={currentIndex}
@@ -58,16 +81,13 @@ export default function Home() {
             onItemClick={playItem}
           />
 
-          {/* Main content area */}
           <main className="flex-1 overflow-y-auto p-6">
-            {/* URL input at top when processing */}
             {isProcessing && (
               <div className="mb-6">
                 <UrlInput onSubmit={submitUrls} disabled={true} />
               </div>
             )}
 
-            {/* Play button before first play */}
             {hasReadyItems && !isPlaying && currentIndex < 0 && (
               <div className="flex items-center justify-center h-full">
                 <button
@@ -79,7 +99,6 @@ export default function Home() {
               </div>
             )}
 
-            {/* Now playing: show summary text */}
             {displayItem && displayItem.summary && (
               <div className="max-w-2xl mx-auto">
                 <div className="mb-4">
@@ -94,7 +113,8 @@ export default function Home() {
                     {displayItem.title}
                   </h2>
                   <p className="text-sm text-zinc-500 mt-1">
-                    {displayItem.type === "youtube" ? "YouTube" : "Article"} — {displayItem.url}
+                    {displayItem.type === "youtube" ? "YouTube" : "Article"} —{" "}
+                    {displayItem.url}
                   </p>
                 </div>
                 <div className="bg-zinc-900 rounded-xl p-6 border border-zinc-800">
@@ -108,7 +128,6 @@ export default function Home() {
               </div>
             )}
 
-            {/* Empty state when items exist but nothing selected */}
             {!displayItem && !isProcessing && hasItems && !hasReadyItems && (
               <div className="flex items-center justify-center h-full text-zinc-500">
                 Processing your links...
@@ -128,6 +147,19 @@ export default function Home() {
         onSkipNext={skipNext}
         onSkipPrevious={skipPrevious}
         onSeek={seek}
+      />
+
+      <SettingsModal
+        isOpen={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        keys={keys}
+        onSave={saveKeys}
+        onClear={clearKeys}
+      />
+
+      <WelcomeModal
+        isOpen={!isRegistered}
+        onComplete={register}
       />
     </div>
   );
