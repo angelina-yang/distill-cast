@@ -1,65 +1,134 @@
-import Image from "next/image";
+"use client";
+
+import { Header } from "@/components/header";
+import { UrlInput } from "@/components/url-input";
+import { SidebarPlaylist } from "@/components/sidebar-playlist";
+import { AudioPlayer } from "@/components/player/audio-player";
+import { useProcessing } from "@/hooks/use-processing";
+import { useAudioPlayer } from "@/hooks/use-audio-player";
 
 export default function Home() {
+  const { items, isProcessing, submitUrls, clearAll } = useProcessing();
+  const {
+    currentIndex,
+    currentItem,
+    isPlaying,
+    playingIntro,
+    currentTime,
+    duration,
+    finished,
+    togglePlayPause,
+    skipNext,
+    skipPrevious,
+    playItem,
+    seek,
+  } = useAudioPlayer(items);
+
+  const hasItems = items.length > 0;
+  const hasReadyItems = items.some((i) => i.status === "ready");
+
+  // Currently playing or finished item to show summary
+  const displayItem =
+    currentIndex >= 0 && items[currentIndex] ? items[currentIndex] : null;
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <div className="min-h-screen bg-black text-white flex flex-col">
+      <Header onClear={clearAll} showClear={hasItems} />
+
+      {!hasItems ? (
+        <main className="flex-1 flex items-center justify-center px-4">
+          <div className="flex flex-col items-center gap-6">
+            <div className="text-center space-y-2">
+              <h2 className="text-3xl font-bold">Your audio briefing</h2>
+              <p className="text-zinc-400 max-w-md">
+                Paste article or YouTube links below. We&apos;ll distill them
+                into a podcast-style audio briefing you can listen to on the go.
+              </p>
+            </div>
+            <UrlInput onSubmit={submitUrls} disabled={false} />
+          </div>
+        </main>
+      ) : (
+        <div className="flex-1 flex min-h-0 pb-20">
+          {/* Sidebar playlist */}
+          <SidebarPlaylist
+            items={items}
+            currentIndex={currentIndex}
+            isPlaying={isPlaying}
+            onItemClick={playItem}
+          />
+
+          {/* Main content area */}
+          <main className="flex-1 overflow-y-auto p-6">
+            {/* URL input at top when processing */}
+            {isProcessing && (
+              <div className="mb-6">
+                <UrlInput onSubmit={submitUrls} disabled={true} />
+              </div>
+            )}
+
+            {/* Play button before first play */}
+            {hasReadyItems && !isPlaying && currentIndex < 0 && (
+              <div className="flex items-center justify-center h-full">
+                <button
+                  onClick={togglePlayPause}
+                  className="px-8 py-3 bg-violet-600 hover:bg-violet-500 text-white font-medium rounded-full transition-colors text-lg"
+                >
+                  Play Briefing
+                </button>
+              </div>
+            )}
+
+            {/* Now playing: show summary text */}
+            {displayItem && displayItem.summary && (
+              <div className="max-w-2xl mx-auto">
+                <div className="mb-4">
+                  <span className="text-xs text-violet-400 uppercase tracking-wider font-medium">
+                    {currentIndex >= 0 && isPlaying
+                      ? "Now Playing"
+                      : finished
+                        ? "Finished"
+                        : "Paused"}
+                  </span>
+                  <h2 className="text-xl font-bold mt-1">
+                    {displayItem.title}
+                  </h2>
+                  <p className="text-sm text-zinc-500 mt-1">
+                    {displayItem.type === "youtube" ? "YouTube" : "Article"} — {displayItem.url}
+                  </p>
+                </div>
+                <div className="bg-zinc-900 rounded-xl p-6 border border-zinc-800">
+                  <h3 className="text-sm font-semibold text-zinc-400 uppercase tracking-wider mb-3">
+                    Summary
+                  </h3>
+                  <p className="text-zinc-200 leading-relaxed whitespace-pre-wrap">
+                    {displayItem.summary}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Empty state when items exist but nothing selected */}
+            {!displayItem && !isProcessing && hasItems && !hasReadyItems && (
+              <div className="flex items-center justify-center h-full text-zinc-500">
+                Processing your links...
+              </div>
+            )}
+          </main>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
+      )}
+
+      <AudioPlayer
+        currentItem={currentItem}
+        isPlaying={isPlaying}
+        playingIntro={playingIntro}
+        currentTime={currentTime}
+        duration={duration}
+        onTogglePlayPause={togglePlayPause}
+        onSkipNext={skipNext}
+        onSkipPrevious={skipPrevious}
+        onSeek={seek}
+      />
     </div>
   );
 }
