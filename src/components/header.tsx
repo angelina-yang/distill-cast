@@ -1,13 +1,13 @@
 "use client";
 
 interface HeaderProps {
-  onClear?: () => void;
+  onClearAll?: () => void;
   showClear: boolean;
   onOpenSettings: () => void;
   hasKeys: boolean;
 }
 
-export function Header({ onClear, showClear, onOpenSettings, hasKeys }: HeaderProps) {
+export function Header({ onClearAll, showClear, onOpenSettings, hasKeys }: HeaderProps) {
   return (
     <header className="flex items-center justify-between px-4 py-4 border-b border-zinc-900">
       <div>
@@ -17,12 +17,12 @@ export function Header({ onClear, showClear, onOpenSettings, hasKeys }: HeaderPr
         </p>
       </div>
       <div className="flex items-center gap-3">
-        {showClear && onClear && (
+        {showClear && onClearAll && (
           <button
-            onClick={onClear}
-            className="text-sm text-zinc-500 hover:text-white transition-colors"
+            onClick={onClearAll}
+            className="text-sm text-zinc-500 hover:text-red-400 transition-colors"
           >
-            New Briefing
+            Clear All
           </button>
         )}
         <a

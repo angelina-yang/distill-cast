@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { Header } from "@/components/header";
 import { UrlInput } from "@/components/url-input";
 import { SidebarPlaylist } from "@/components/sidebar-playlist";
@@ -15,7 +15,17 @@ import { useUser } from "@/hooks/use-user";
 export default function Home() {
   const { isRegistered, loaded: userLoaded, register } = useUser();
   const { keys, hasKeys, loaded, saveKeys, clearKeys } = useApiKeys();
-  const { items, isProcessing, submitUrls, clearAll } = useProcessing(keys);
+  const { items, isProcessing, addUrls, toggleDone, removeItem, clearAll } =
+    useProcessing(keys);
+
+  // Mark item as done when audio finishes playing
+  const handleItemFinished = useCallback(
+    (itemId: string) => {
+      toggleDone(itemId);
+    },
+    [toggleDone]
+  );
+
   const {
     currentIndex,
     currentItem,
@@ -29,11 +39,10 @@ export default function Home() {
     skipPrevious,
     playItem,
     seek,
-  } = useAudioPlayer(items);
+  } = useAudioPlayer(items, { onItemFinished: handleItemFinished });
 
   const [settingsOpen, setSettingsOpen] = useState(false);
 
-  // Auto-open settings after registration if no keys set up yet
   const handleRegistration = (name: string, email: string) => {
     register(name, email);
     if (!hasKeys) {
@@ -42,24 +51,24 @@ export default function Home() {
   };
 
   const hasItems = items.length > 0;
-  const hasReadyItems = items.some((i) => i.status === "ready");
+  const activeItems = items.filter((i) => !i.done);
+  const hasReadyItems = activeItems.some((i) => i.status === "ready");
 
   const displayItem =
     currentIndex >= 0 && items[currentIndex] ? items[currentIndex] : null;
 
-  // Don't render until localStorage is loaded
   if (!loaded || !userLoaded) return null;
 
   return (
     <div className="min-h-screen bg-black text-white flex flex-col">
       <Header
-        onClear={clearAll}
+        onClearAll={clearAll}
         showClear={hasItems}
         onOpenSettings={() => setSettingsOpen(true)}
         hasKeys={hasKeys}
       />
 
-      {!hasItems ? (
+      {!hasItems && !hasKeys ? (
         <main className="flex-1 flex items-center justify-center px-4">
           <div className="flex flex-col items-center gap-6">
             <div className="text-center space-y-2">
@@ -69,35 +78,40 @@ export default function Home() {
                 into a podcast-style audio briefing you can listen to on the go.
               </p>
             </div>
-            {!hasKeys && (
-              <button
-                onClick={() => setSettingsOpen(true)}
-                className="px-5 py-2.5 bg-violet-600 hover:bg-violet-500 text-white font-medium rounded-lg transition-colors"
-              >
-                Set up API Keys to get started
-              </button>
-            )}
-            {hasKeys && <UrlInput onSubmit={submitUrls} disabled={false} />}
+            <button
+              onClick={() => setSettingsOpen(true)}
+              className="px-5 py-2.5 bg-violet-600 hover:bg-violet-500 text-white font-medium rounded-lg transition-colors"
+            >
+              Set up API Keys to get started
+            </button>
           </div>
         </main>
       ) : (
         <div className="flex-1 flex min-h-0 pb-20">
-          <SidebarPlaylist
-            items={items}
-            currentIndex={currentIndex}
-            isPlaying={isPlaying}
-            onItemClick={playItem}
-          />
+          {/* Sidebar */}
+          {hasItems && (
+            <SidebarPlaylist
+              items={items}
+              currentIndex={currentIndex}
+              isPlaying={isPlaying}
+              onItemClick={playItem}
+              onToggleDone={toggleDone}
+              onRemoveItem={removeItem}
+            />
+          )}
 
+          {/* Main content */}
           <main className="flex-1 overflow-y-auto p-6">
-            {isProcessing && (
-              <div className="mb-6">
-                <UrlInput onSubmit={submitUrls} disabled={true} />
+            {/* URL input — always visible when keys are set */}
+            {hasKeys && (
+              <div className="max-w-2xl mx-auto mb-6">
+                <UrlInput onSubmit={addUrls} disabled={isProcessing} />
               </div>
             )}
 
+            {/* Play button */}
             {hasReadyItems && !isPlaying && currentIndex < 0 && (
-              <div className="flex items-center justify-center h-full">
+              <div className="flex items-center justify-center mt-8">
                 <button
                   onClick={togglePlayPause}
                   className="px-8 py-3 bg-violet-600 hover:bg-violet-500 text-white font-medium rounded-full transition-colors text-lg"
@@ -107,8 +121,9 @@ export default function Home() {
               </div>
             )}
 
+            {/* Now playing summary */}
             {displayItem && displayItem.summary && (
-              <div className="max-w-2xl mx-auto">
+              <div className="max-w-2xl mx-auto mt-4">
                 <div className="mb-4">
                   <span className="text-xs text-violet-400 uppercase tracking-wider font-medium">
                     {currentIndex >= 0 && isPlaying
@@ -136,9 +151,10 @@ export default function Home() {
               </div>
             )}
 
-            {!displayItem && !isProcessing && hasItems && !hasReadyItems && (
-              <div className="flex items-center justify-center h-full text-zinc-500">
-                Processing your links...
+            {/* Empty state */}
+            {!hasItems && hasKeys && (
+              <div className="text-center mt-8 text-zinc-500">
+                <p>Paste a link above to get started</p>
               </div>
             )}
           </main>

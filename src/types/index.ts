@@ -19,6 +19,7 @@ export interface PlaylistItem {
   audioUrl: string | null;
   status: ItemStatus;
   error?: string;
+  done: boolean;
 }
 
 export interface ExtractResult {

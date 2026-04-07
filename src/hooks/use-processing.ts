@@ -103,7 +103,8 @@ export function useProcessing(keys: ApiKeys) {
     []
   );
 
-  const submitUrls = useCallback(
+  // Append new URLs to existing playlist
+  const addUrls = useCallback(
     (urls: string[]) => {
       const newItems: PlaylistItem[] = urls.map((url) => ({
         id: generateId(),
@@ -115,12 +116,13 @@ export function useProcessing(keys: ApiKeys) {
         introAudioUrl: null,
         audioUrl: null,
         status: "queued" as ItemStatus,
+        done: false,
       }));
 
-      setItems(newItems);
+      setItems((prev) => [...prev, ...newItems]);
       setIsProcessing(true);
 
-      // Process with concurrency of 2
+      // Process new items with concurrency of 2
       const queue = [...newItems];
       let active = 0;
       const maxConcurrency = 2;
@@ -143,6 +145,28 @@ export function useProcessing(keys: ApiKeys) {
     [keys, updateItem]
   );
 
+  // Mark an item as done/listened
+  const toggleDone = useCallback((id: string) => {
+    setItems((prev) =>
+      prev.map((item) =>
+        item.id === id ? { ...item, done: !item.done } : item
+      )
+    );
+  }, []);
+
+  // Remove a single item
+  const removeItem = useCallback((id: string) => {
+    setItems((prev) => {
+      const item = prev.find((i) => i.id === id);
+      if (item) {
+        if (item.audioUrl) URL.revokeObjectURL(item.audioUrl);
+        if (item.introAudioUrl) URL.revokeObjectURL(item.introAudioUrl);
+      }
+      return prev.filter((i) => i.id !== id);
+    });
+  }, []);
+
+  // Clear all items
   const clearAll = useCallback(() => {
     items.forEach((item) => {
       if (item.audioUrl) URL.revokeObjectURL(item.audioUrl);
@@ -152,5 +176,5 @@ export function useProcessing(keys: ApiKeys) {
     setIsProcessing(false);
   }, [items]);
 
-  return { items, isProcessing, submitUrls, clearAll };
+  return { items, isProcessing, addUrls, toggleDone, removeItem, clearAll };
 }
