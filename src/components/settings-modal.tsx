@@ -253,8 +253,10 @@ export function SettingsModal({
           {/* Privacy note */}
           <div className="bg-zinc-800/50 rounded-lg p-3 border border-zinc-700/50">
             <p className="text-xs text-zinc-400 leading-relaxed">
-              Your API keys are stored locally in your browser and only used to
-              make API calls on your behalf. We never store or log your keys.
+              Your API keys are stored locally in your browser. When you generate
+              a briefing, your keys are sent to our server to make API calls on
+              your behalf — they pass through our server but are never stored,
+              logged, or shared.
             </p>
           </div>
 
