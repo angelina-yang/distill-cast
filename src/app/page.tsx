@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { Header } from "@/components/header";
 import { UrlInput } from "@/components/url-input";
 import { SidebarPlaylist } from "@/components/sidebar-playlist";
@@ -11,6 +11,19 @@ import { useProcessing } from "@/hooks/use-processing";
 import { useAudioPlayer } from "@/hooks/use-audio-player";
 import { useApiKeys } from "@/hooks/use-api-keys";
 import { useUser } from "@/hooks/use-user";
+
+/** Split summary into sentences for highlighting during playback */
+function splitSentences(text: string): string[] {
+  // Split on sentence-ending punctuation followed by whitespace
+  const parts = text.match(/[^.!?\n]+[.!?\n]+[\s]*/g);
+  if (!parts) return [text];
+  // If there's leftover text, append it
+  const joined = parts.join("");
+  if (joined.length < text.length) {
+    parts.push(text.slice(joined.length));
+  }
+  return parts.filter((s) => s.trim().length > 0);
+}
 
 export default function Home() {
   const { isRegistered, loaded: userLoaded, register } = useUser();
@@ -46,6 +59,7 @@ export default function Home() {
 
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [playlistOpen, setPlaylistOpen] = useState(false);
+  const [sidebarVisible, setSidebarVisible] = useState(true);
 
   const handleRegistration = (name: string, email: string) => {
     register(name, email);
@@ -57,9 +71,32 @@ export default function Home() {
   const hasItems = items.length > 0;
   const activeItems = items.filter((i) => !i.done);
   const hasReadyItems = activeItems.some((i) => i.status === "ready");
+  // Show play button when items are ready but nothing has started playing yet
+  const showPlayButton = hasReadyItems && !isPlaying && currentIndex < 0;
 
   const displayItem =
     currentIndex >= 0 && items[currentIndex] ? items[currentIndex] : null;
+
+  // Split summary into sentences for highlighting
+  const sentences = useMemo(() => {
+    if (!displayItem?.summary) return [];
+    return splitSentences(displayItem.summary);
+  }, [displayItem?.summary]);
+
+  // Estimate which sentence is currently being spoken
+  const activeSentenceIndex = useMemo(() => {
+    if (!isPlaying || !duration || sentences.length === 0) return -1;
+    // Estimate based on proportional position through the text
+    // Each sentence gets a weight proportional to its character length
+    const totalChars = sentences.reduce((sum, s) => sum + s.length, 0);
+    const progress = currentTime / duration;
+    let charsSoFar = 0;
+    for (let i = 0; i < sentences.length; i++) {
+      charsSoFar += sentences[i].length;
+      if (charsSoFar / totalChars >= progress) return i;
+    }
+    return sentences.length - 1;
+  }, [isPlaying, currentTime, duration, sentences]);
 
   if (!loaded || !userLoaded) return null;
 
@@ -70,7 +107,18 @@ export default function Home() {
         showClear={hasItems}
         onOpenSettings={() => setSettingsOpen(true)}
         hasKeys={hasKeys}
-        onOpenPlaylist={() => setPlaylistOpen(true)}
+        onTogglePlaylist={() => {
+          // On mobile: toggle overlay drawer
+          // On desktop: toggle sidebar visibility
+          if (window.innerWidth < 768) {
+            setPlaylistOpen((prev) => !prev);
+          } else {
+            setSidebarVisible((prev) => !prev);
+          }
+        }}
+        playlistOpen={playlistOpen || sidebarVisible}
+        onPlay={togglePlayPause}
+        showPlayButton={showPlayButton}
       />
 
       {!hasItems && !hasKeys ? (
@@ -104,6 +152,7 @@ export default function Home() {
               onRemoveItem={removeItem}
               mobileOpen={playlistOpen}
               onMobileClose={() => setPlaylistOpen(false)}
+              desktopVisible={sidebarVisible}
             />
           )}
 
@@ -145,18 +194,33 @@ export default function Home() {
                   <h2 className="text-xl font-bold mt-1">
                     {displayItem.title}
                   </h2>
-                  <p className="text-sm text-zinc-500 mt-1">
+                  <p className="text-sm text-zinc-500 mt-1 break-all">
                     {displayItem.type === "youtube" ? "YouTube" : "Article"} —{" "}
                     {displayItem.url}
                   </p>
                 </div>
-                <div className="bg-zinc-900 rounded-xl p-6 border border-zinc-800">
+                <div className="bg-zinc-900 rounded-xl p-4 md:p-6 border border-zinc-800">
                   <h3 className="text-sm font-semibold text-zinc-400 uppercase tracking-wider mb-3">
                     Summary
                   </h3>
-                  <p className="text-zinc-200 leading-relaxed whitespace-pre-wrap">
-                    {displayItem.summary}
-                  </p>
+                  <div className="text-zinc-200 leading-relaxed whitespace-pre-wrap">
+                    {isPlaying && sentences.length > 0
+                      ? sentences.map((sentence, i) => (
+                          <span
+                            key={i}
+                            className={`transition-colors duration-300 ${
+                              i === activeSentenceIndex
+                                ? "text-white bg-violet-500/20 rounded px-0.5"
+                                : i < activeSentenceIndex
+                                  ? "text-zinc-400"
+                                  : "text-zinc-200"
+                            }`}
+                          >
+                            {sentence}
+                          </span>
+                        ))
+                      : displayItem.summary}
+                  </div>
                 </div>
               </div>
             )}

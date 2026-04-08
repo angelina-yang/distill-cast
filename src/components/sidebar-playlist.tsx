@@ -12,6 +12,7 @@ interface SidebarPlaylistProps {
   onRemoveItem: (id: string) => void;
   mobileOpen: boolean;
   onMobileClose: () => void;
+  desktopVisible?: boolean;
 }
 
 export function SidebarPlaylist({
@@ -23,6 +24,7 @@ export function SidebarPlaylist({
   onRemoveItem,
   mobileOpen,
   onMobileClose,
+  desktopVisible = true,
 }: SidebarPlaylistProps) {
   const [showDone, setShowDone] = useState(false);
 
@@ -223,9 +225,11 @@ export function SidebarPlaylist({
   return (
     <>
       {/* Desktop sidebar */}
-      <div className="hidden md:flex w-80 shrink-0 border-r border-zinc-800 bg-zinc-950 flex-col h-full">
-        {sidebarContent}
-      </div>
+      {desktopVisible && (
+        <div className="hidden md:flex w-80 shrink-0 border-r border-zinc-800 bg-zinc-950 flex-col h-full">
+          {sidebarContent}
+        </div>
+      )}
 
       {/* Mobile overlay */}
       {mobileOpen && (
