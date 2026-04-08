@@ -268,7 +268,7 @@ function extractJsonObject(str: string, startIdx: number): string | null {
   return null;
 }
 
-function extractCaptionsFromJson(jsonStr: string): TranscriptSegment[] {
+async function extractCaptionsFromJson(jsonStr: string): Promise<TranscriptSegment[]> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let data: any;
   try {
