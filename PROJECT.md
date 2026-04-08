@@ -8,6 +8,8 @@
 
 The name is a play on "TL;DR" (too long; didn't read) — but for listening.
 
+**Live at**: [tllisten.twosetai.com](https://tllisten.twosetai.com)
+
 ### Core Use Case
 
 You're about to drive somewhere and have five articles and two YouTube videos you want to catch up on. You paste the links into TL;Listen, hit "Add to Playlist," and by the time you're in the car, your audio briefings are ready. They play back-to-back, and you can skip, pause, or replay any item.
@@ -40,7 +42,7 @@ There is **no traditional backend** — no database, no server, no user accounts
 
 | Technology | Purpose |
 |-----------|---------|
-| **Vercel (Pro plan)** | Hosting, serverless functions (API routes), CDN, auto-deploy from GitHub |
+| **Vercel (Pro plan)** | Hosting, serverless functions (API routes), CDN, auto-deploy from GitHub. Custom domain: `tllisten.twosetai.com` (CNAME via Namecheap DNS) |
 | **GitHub** | Version control (angelina-yang/distill-cast) |
 | **Google Sheets + Apps Script** | Write-only signup log (name, email, newsletter opt-in). Not a database — the app never reads from it |
 
@@ -425,7 +427,7 @@ All user signups are logged to a Google Sheet via Google Apps Script webhook.
 | Daily briefing | Auto-fetch from saved sources each morning |
 | Persistent storage | Database to save playlists across sessions |
 | Branded PWA icon | Replace generic headphones icon with custom-designed app icon for home screen |
-| Landing page | Marketing page for sharing the tool publicly |
+| TwoSetAI Lab landing page | `twosetai.com/lab/` showcasing all tools, with `twosetai.com/lab/tllisten/` as a marketing page linking to `tllisten.twosetai.com`. Hybrid approach: Astro site handles landing pages, subdomain serves the app |
 
 ---
 
