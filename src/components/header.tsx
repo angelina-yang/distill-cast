@@ -71,7 +71,7 @@ export function Header({
           href="https://buymeacoffee.com/angelinayang"
           target="_blank"
           rel="noopener noreferrer"
-          className="text-sm text-zinc-500 hover:text-yellow-400 transition-colors hidden sm:block"
+          className="text-sm text-zinc-500 hover:text-yellow-400 transition-colors"
           title="Buy me a coffee"
         >
           <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
