@@ -1,4 +1,4 @@
-const CACHE_NAME = "distill-cast-v1";
+const CACHE_NAME = "tl-listen-v1";
 const STATIC_ASSETS = ["/", "/manifest.json"];
 
 self.addEventListener("install", (event) => {

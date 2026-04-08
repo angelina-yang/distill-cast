@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Distill Cast",
+  title: "TL;Listen",
   description: "Turn articles and videos into audio briefings",
   manifest: "/manifest.json",
 };

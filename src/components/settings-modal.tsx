@@ -152,7 +152,7 @@ export function SettingsModal({
               <div className="mb-3">
                 <h3 className="text-sm font-medium text-white">Your API Keys</h3>
                 <p className="text-xs text-zinc-500 mt-1">
-                  Distill Cast uses AI to summarize and generate audio. You&apos;ll need
+                  TL;Listen uses AI to summarize and generate audio. You&apos;ll need
                   two free API keys to get started — takes about 2 minutes.
                 </p>
               </div>

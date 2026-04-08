@@ -16,8 +16,8 @@ export async function POST(req: NextRequest) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           email,
-          first_url: "https://distill-cast.vercel.app",
-          first_referrer: "distill-cast",
+          first_url: "https://tl-listen.vercel.app",
+          first_referrer: "tl-listen",
         }),
       }
     );

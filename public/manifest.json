@@ -1,6 +1,6 @@
 {
-  "name": "Distill Cast",
-  "short_name": "DistillCast",
+  "name": "TL;Listen",
+  "short_name": "TLListen",
   "description": "Turn articles and videos into audio briefings",
   "start_url": "/",
   "display": "standalone",

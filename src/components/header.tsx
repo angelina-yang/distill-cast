@@ -11,7 +11,7 @@ export function Header({ onClearAll, showClear, onOpenSettings, hasKeys }: Heade
   return (
     <header className="flex items-center justify-between px-4 py-4 border-b border-zinc-900">
       <div>
-        <h1 className="text-xl font-bold text-white">Distill Cast</h1>
+        <h1 className="text-xl font-bold text-white">TL;Listen</h1>
         <p className="text-sm text-zinc-500">
           Turn articles and videos into audio briefings
         </p>
