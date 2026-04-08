@@ -45,6 +45,7 @@ export default function Home() {
   } = useAudioPlayer(items, { onItemFinished: handleItemFinished });
 
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [playlistOpen, setPlaylistOpen] = useState(false);
 
   const handleRegistration = (name: string, email: string) => {
     register(name, email);
@@ -69,6 +70,7 @@ export default function Home() {
         showClear={hasItems}
         onOpenSettings={() => setSettingsOpen(true)}
         hasKeys={hasKeys}
+        onOpenPlaylist={() => setPlaylistOpen(true)}
       />
 
       {!hasItems && !hasKeys ? (
@@ -100,11 +102,13 @@ export default function Home() {
               onItemClick={playItem}
               onToggleDone={toggleDone}
               onRemoveItem={removeItem}
+              mobileOpen={playlistOpen}
+              onMobileClose={() => setPlaylistOpen(false)}
             />
           )}
 
           {/* Main content */}
-          <main className="flex-1 overflow-y-auto p-6">
+          <main className="flex-1 overflow-y-auto p-4 md:p-6">
             {/* URL input — always visible when keys are set */}
             {hasKeys && (
               <div className="max-w-2xl mx-auto mb-6">

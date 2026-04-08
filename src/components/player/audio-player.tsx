@@ -47,16 +47,16 @@ export function AudioPlayer({
             : null;
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-zinc-950 border-t border-zinc-800 px-4 py-3 z-50">
-      <div className="max-w-2xl mx-auto space-y-2">
+    <div className="fixed bottom-0 left-0 right-0 bg-zinc-950 border-t border-zinc-800 px-3 md:px-4 py-2 md:py-3 z-50">
+      <div className="max-w-2xl mx-auto space-y-1.5 md:space-y-2">
         <div className="flex items-center justify-between">
-          <div className="min-w-0 flex-1 mr-4">
-            <p className="text-sm text-white truncate">{currentItem.title}</p>
+          <div className="min-w-0 flex-1 mr-3 md:mr-4">
+            <p className="text-xs md:text-sm text-white truncate">{currentItem.title}</p>
             {statusLabel && (
               <p className="text-xs text-violet-400">{statusLabel}</p>
             )}
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 md:gap-2">
             {/* Previous track */}
             <button
               onClick={onSkipPrevious}

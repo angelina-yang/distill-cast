@@ -10,6 +10,8 @@ interface SidebarPlaylistProps {
   onItemClick: (index: number) => void;
   onToggleDone: (id: string) => void;
   onRemoveItem: (id: string) => void;
+  mobileOpen: boolean;
+  onMobileClose: () => void;
 }
 
 export function SidebarPlaylist({
@@ -19,6 +21,8 @@ export function SidebarPlaylist({
   onItemClick,
   onToggleDone,
   onRemoveItem,
+  mobileOpen,
+  onMobileClose,
 }: SidebarPlaylistProps) {
   const [showDone, setShowDone] = useState(false);
 
@@ -27,16 +31,28 @@ export function SidebarPlaylist({
   const activeItems = items.filter((i) => !i.done);
   const doneItems = items.filter((i) => i.done);
 
-  return (
-    <div className="w-80 shrink-0 border-r border-zinc-800 bg-zinc-950 flex flex-col h-full">
-      <div className="p-4 border-b border-zinc-800">
-        <h2 className="text-sm font-semibold text-zinc-400 uppercase tracking-wider">
-          Playlist
-        </h2>
-        <p className="text-xs text-zinc-600 mt-1">
-          {activeItems.filter((i) => i.status === "ready").length} ready
-          {doneItems.length > 0 && ` · ${doneItems.length} done`}
-        </p>
+  const sidebarContent = (
+    <>
+      <div className="p-4 border-b border-zinc-800 flex items-center justify-between">
+        <div>
+          <h2 className="text-sm font-semibold text-zinc-400 uppercase tracking-wider">
+            Playlist
+          </h2>
+          <p className="text-xs text-zinc-600 mt-1">
+            {activeItems.filter((i) => i.status === "ready").length} ready
+            {doneItems.length > 0 && ` · ${doneItems.length} done`}
+          </p>
+        </div>
+        {/* Close button — mobile only */}
+        <button
+          onClick={onMobileClose}
+          className="md:hidden p-1 text-zinc-500 hover:text-white"
+          aria-label="Close playlist"
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M18 6L6 18M6 6l12 12" />
+          </svg>
+        </button>
       </div>
       <div className="flex-1 overflow-y-auto">
         {/* Active items */}
@@ -61,7 +77,12 @@ export function SidebarPlaylist({
               }`}
             >
               <button
-                onClick={() => isReady && onItemClick(globalIndex)}
+                onClick={() => {
+                  if (isReady) {
+                    onItemClick(globalIndex);
+                    onMobileClose();
+                  }
+                }}
                 disabled={!isReady}
                 className="w-full text-left px-4 py-3 flex items-start gap-3 cursor-pointer disabled:cursor-default"
               >
@@ -107,12 +128,12 @@ export function SidebarPlaylist({
                 </div>
               </button>
 
-              {/* Action buttons — show on hover */}
+              {/* Action buttons — hover on desktop, always visible on mobile */}
               {isReady && (
-                <div className="absolute right-2 top-1/2 -translate-y-1/2 hidden group-hover:flex items-center gap-1">
+                <div className="absolute right-2 top-1/2 -translate-y-1/2 flex md:hidden md:group-hover:flex items-center gap-1">
                   <button
                     onClick={(e) => { e.stopPropagation(); onToggleDone(item.id); }}
-                    className="p-1 text-zinc-500 hover:text-green-400 transition-colors"
+                    className="p-1.5 text-zinc-500 hover:text-green-400 active:text-green-400 transition-colors"
                     title="Mark as done"
                   >
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -121,7 +142,7 @@ export function SidebarPlaylist({
                   </button>
                   <button
                     onClick={(e) => { e.stopPropagation(); onRemoveItem(item.id); }}
-                    className="p-1 text-zinc-500 hover:text-red-400 transition-colors"
+                    className="p-1.5 text-zinc-500 hover:text-red-400 active:text-red-400 transition-colors"
                     title="Remove"
                   >
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -163,7 +184,10 @@ export function SidebarPlaylist({
                     className="group relative border-b border-zinc-800/50 opacity-50 hover:opacity-75 transition-opacity"
                   >
                     <button
-                      onClick={() => onItemClick(globalIndex)}
+                      onClick={() => {
+                        onItemClick(globalIndex);
+                        onMobileClose();
+                      }}
                       className="w-full text-left px-4 py-2 flex items-start gap-3"
                     >
                       <div className="w-6 h-6 shrink-0 flex items-center justify-center mt-0.5">
@@ -175,10 +199,10 @@ export function SidebarPlaylist({
                         {item.title}
                       </p>
                     </button>
-                    <div className="absolute right-2 top-1/2 -translate-y-1/2 hidden group-hover:flex items-center gap-1">
+                    <div className="absolute right-2 top-1/2 -translate-y-1/2 flex md:hidden md:group-hover:flex items-center gap-1">
                       <button
                         onClick={(e) => { e.stopPropagation(); onToggleDone(item.id); }}
-                        className="p-1 text-zinc-500 hover:text-yellow-400 transition-colors"
+                        className="p-1.5 text-zinc-500 hover:text-yellow-400 active:text-yellow-400 transition-colors"
                         title="Move back to playlist"
                       >
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -193,6 +217,28 @@ export function SidebarPlaylist({
           </>
         )}
       </div>
-    </div>
+    </>
+  );
+
+  return (
+    <>
+      {/* Desktop sidebar */}
+      <div className="hidden md:flex w-80 shrink-0 border-r border-zinc-800 bg-zinc-950 flex-col h-full">
+        {sidebarContent}
+      </div>
+
+      {/* Mobile overlay */}
+      {mobileOpen && (
+        <div className="md:hidden fixed inset-0 z-[100]">
+          <div
+            className="absolute inset-0 bg-black/60"
+            onClick={onMobileClose}
+          />
+          <div className="absolute left-0 top-0 bottom-0 w-80 max-w-[85vw] bg-zinc-950 flex flex-col animate-slide-in">
+            {sidebarContent}
+          </div>
+        </div>
+      )}
+    </>
   );
 }
