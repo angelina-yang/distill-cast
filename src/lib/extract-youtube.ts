@@ -1,7 +1,5 @@
 import { extractVideoId } from "./url-utils";
 
-const INNERTUBE_API_KEY = "AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8";
-
 interface TranscriptSegment {
   text: string;
   start: number;
@@ -9,326 +7,174 @@ interface TranscriptSegment {
 }
 
 /**
- * Try multiple innertube client types to get captions.
- * YouTube restricts different clients differently from datacenter IPs.
+ * Public Invidious instances with API access.
+ * These are community-run YouTube proxies that aren't blocked by YouTube's
+ * datacenter IP detection. We try multiple in case one is down.
  */
-const INNERTUBE_CLIENTS = [
-  {
-    name: "WEB",
-    context: {
-      client: {
-        hl: "en",
-        gl: "US",
-        clientName: "WEB",
-        clientVersion: "2.20240313.05.00",
-      },
-    },
-  },
-  {
-    // MWEB (mobile web) is often less restricted
-    name: "MWEB",
-    context: {
-      client: {
-        hl: "en",
-        gl: "US",
-        clientName: "MWEB",
-        clientVersion: "2.20240313.05.00",
-      },
-    },
-  },
-  {
-    // TV embedded client — often works when others are blocked
-    name: "TVHTML5_SIMPLY_EMBEDDED",
-    context: {
-      client: {
-        hl: "en",
-        gl: "US",
-        clientName: "TVHTML5_SIMPLY_EMBEDDED_PLAYER",
-        clientVersion: "2.0",
-      },
-      thirdParty: {
-        embedUrl: "https://www.google.com",
-      },
-    },
-  },
+const INVIDIOUS_INSTANCES = [
+  "https://inv.nadeko.net",
+  "https://invidious.nerdvpn.de",
+  "https://invidious.jing.rocks",
+  "https://invidious.privacyredirect.com",
+  "https://iv.nboeck.de",
 ];
 
 /**
- * Fetch transcript by trying multiple innertube client types.
- * This avoids fetching the watch page (which YouTube blocks from datacenters).
+ * Fetch transcript via Invidious API.
+ * Invidious is an open-source YouTube frontend that proxies requests
+ * through non-datacenter IPs, bypassing YouTube's bot detection.
  */
-async function fetchTranscriptInnertube(
+async function fetchTranscriptInvidious(
   videoId: string
-): Promise<TranscriptSegment[]> {
+): Promise<{ segments: TranscriptSegment[]; title: string }> {
   const errors: string[] = [];
 
-  for (const client of INNERTUBE_CLIENTS) {
+  for (const instance of INVIDIOUS_INSTANCES) {
     try {
-      console.log(`[YouTube] Trying innertube client: ${client.name}`);
+      console.log(`[YouTube] Trying Invidious instance: ${instance}`);
 
-      const playerRes = await fetch(
-        `https://www.youtube.com/youtubei/v1/player?key=${INNERTUBE_API_KEY}&prettyPrint=false`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "User-Agent":
-              "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36",
-            "X-YouTube-Client-Name": "1",
-            "X-YouTube-Client-Version": "2.20240313.05.00",
-            Origin: "https://www.youtube.com",
-            Referer: "https://www.youtube.com/",
-          },
-          body: JSON.stringify({
-            context: client.context,
-            videoId,
-          }),
-        }
-      );
+      // First get video info (includes title)
+      const infoRes = await fetch(`${instance}/api/v1/videos/${videoId}`, {
+        headers: { Accept: "application/json" },
+        signal: AbortSignal.timeout(8000),
+      });
 
-      if (!playerRes.ok) {
-        errors.push(`${client.name}: HTTP ${playerRes.status}`);
+      if (!infoRes.ok) {
+        errors.push(`${instance}: video info returned ${infoRes.status}`);
         continue;
       }
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const playerData: any = await playerRes.json();
+      const videoInfo: any = await infoRes.json();
+      const title = videoInfo.title || "YouTube Video";
 
-      // Log what we got back
-      const status = playerData?.playabilityStatus?.status;
-      const reason = playerData?.playabilityStatus?.reason;
-      const hasCaptions = !!playerData?.captions;
-      console.log(
-        `[YouTube] ${client.name}: status=${status}, reason=${reason || "none"}, hasCaptions=${hasCaptions}`
-      );
+      // Get captions list
+      const captions = videoInfo.captions;
+      if (!captions || captions.length === 0) {
+        // Try the captions endpoint directly
+        const captionsRes = await fetch(
+          `${instance}/api/v1/captions/${videoId}`,
+          {
+            headers: { Accept: "application/json" },
+            signal: AbortSignal.timeout(5000),
+          }
+        );
 
-      if (status === "LOGIN_REQUIRED") {
-        errors.push(`${client.name}: login required`);
-        continue;
-      }
-      if (status === "UNPLAYABLE") {
-        errors.push(`${client.name}: unplayable - ${reason || "unknown"}`);
-        continue;
-      }
-      if (status === "ERROR") {
-        errors.push(`${client.name}: error - ${reason || "unknown"}`);
-        continue;
-      }
+        if (!captionsRes.ok) {
+          errors.push(`${instance}: no captions available`);
+          continue;
+        }
 
-      const captions = playerData?.captions;
-      if (!captions) {
-        errors.push(`${client.name}: no captions in response`);
-        continue;
-      }
-
-      const captionTracks =
-        captions?.playerCaptionsTracklistRenderer?.captionTracks;
-      if (!captionTracks || captionTracks.length === 0) {
-        errors.push(`${client.name}: no caption tracks`);
-        continue;
-      }
-
-      console.log(
-        `[YouTube] ${client.name}: found ${captionTracks.length} caption track(s)`
-      );
-
-      // Prefer English manual, then English auto, then first available
-      const manualTrack = captionTracks.find(
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (t: any) => t.languageCode === "en" && t.kind !== "asr"
-      );
-      const autoTrack = captionTracks.find(
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (t: any) => t.languageCode === "en"
-      );
-      const selectedTrack = manualTrack || autoTrack || captionTracks[0];
+        const captionsData: any = await captionsRes.json();
+        const captionsList = captionsData.captions;
 
-      console.log(
-        `[YouTube] Using track: lang=${selectedTrack.languageCode}, kind=${selectedTrack.kind || "manual"}`
-      );
+        if (!captionsList || captionsList.length === 0) {
+          errors.push(`${instance}: empty captions list`);
+          continue;
+        }
 
-      const segments = await fetchCaptionTrack(selectedTrack.baseUrl);
-      console.log(
-        `[YouTube] Success via ${client.name}: ${segments.length} segments`
+        const segments = await fetchInvidiousCaptions(
+          instance,
+          videoId,
+          captionsList
+        );
+        console.log(
+          `[YouTube] Success via ${instance}: ${segments.length} segments`
+        );
+        return { segments, title };
+      }
+
+      // Use captions from video info
+      const segments = await fetchInvidiousCaptions(
+        instance,
+        videoId,
+        captions
       );
-      return segments;
+      console.log(
+        `[YouTube] Success via ${instance}: ${segments.length} segments`
+      );
+      return { segments, title };
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Unknown error";
-      errors.push(`${client.name}: ${msg}`);
-      console.error(`[YouTube] ${client.name} failed: ${msg}`);
+      if (msg.includes("timed out") || msg.includes("abort")) {
+        errors.push(`${instance}: timed out`);
+      } else {
+        errors.push(`${instance}: ${msg}`);
+      }
+      console.error(`[YouTube] ${instance} failed: ${msg}`);
     }
-  }
-
-  // All clients failed — try the watch page as last resort
-  console.log("[YouTube] All innertube clients failed, trying watch page...");
-  try {
-    return await fetchTranscriptFromWatchPage(videoId);
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : "Unknown error";
-    errors.push(`watch-page: ${msg}`);
-    console.error(`[YouTube] Watch page also failed: ${msg}`);
   }
 
   throw new Error(
-    `All transcript methods failed: ${errors.join("; ")}`
+    `All Invidious instances failed: ${errors.join("; ")}`
   );
 }
 
-/**
- * Last-resort: fetch the watch page and extract captions from embedded data.
- */
-async function fetchTranscriptFromWatchPage(
-  videoId: string
-): Promise<TranscriptSegment[]> {
-  const watchUrl = `https://www.youtube.com/watch?v=${videoId}&has_verified=1&bpctr=9999999999`;
-  const pageRes = await fetch(watchUrl, {
-    headers: {
-      "User-Agent":
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36",
-      "Accept-Language": "en-US,en;q=0.9",
-      Accept:
-        "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-      Cookie: "CONSENT=YES+cb.20210328-17-p0.en+FX+999",
-    },
-  });
-
-  if (!pageRes.ok) {
-    throw new Error(`Watch page returned ${pageRes.status}`);
-  }
-
-  const html = await pageRes.text();
-  console.log(
-    `[YouTube] Watch page size: ${html.length} chars, has ytInitialPlayerResponse: ${html.includes("ytInitialPlayerResponse")}`
-  );
-
-  // Extract the player response JSON using brace counting
-  const marker = "ytInitialPlayerResponse";
-  const markerIdx = html.indexOf(marker);
-  if (markerIdx === -1) {
-    // Log first 500 chars to see what YouTube returned
-    console.error(
-      `[YouTube] Watch page snippet: ${html.substring(0, 500)}`
-    );
-    throw new Error("ytInitialPlayerResponse not found in page");
-  }
-
-  // Find the opening brace
-  const braceStart = html.indexOf("{", markerIdx);
-  if (braceStart === -1) {
-    throw new Error("Could not find JSON start in player response");
-  }
-
-  // Count braces to find the matching closing brace
-  const jsonStr = extractJsonObject(html, braceStart);
-  if (!jsonStr) {
-    throw new Error("Could not extract JSON from player response");
-  }
-
-  return extractCaptionsFromJson(jsonStr);
-}
-
-/**
- * Extract a complete JSON object from a string starting at the given index,
- * using brace counting to handle nested objects correctly.
- */
-function extractJsonObject(str: string, startIdx: number): string | null {
-  let depth = 0;
-  let inString = false;
-  let escape = false;
-
-  for (let i = startIdx; i < str.length && i < startIdx + 2_000_000; i++) {
-    const ch = str[i];
-
-    if (escape) {
-      escape = false;
-      continue;
-    }
-
-    if (ch === "\\") {
-      if (inString) escape = true;
-      continue;
-    }
-
-    if (ch === '"') {
-      inString = !inString;
-      continue;
-    }
-
-    if (inString) continue;
-
-    if (ch === "{") depth++;
-    if (ch === "}") {
-      depth--;
-      if (depth === 0) {
-        return str.substring(startIdx, i + 1);
-      }
-    }
-  }
-
-  return null;
-}
-
-async function extractCaptionsFromJson(jsonStr: string): Promise<TranscriptSegment[]> {
+async function fetchInvidiousCaptions(
+  instance: string,
+  videoId: string,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let data: any;
-  try {
-    data = JSON.parse(jsonStr);
-  } catch {
-    throw new Error("Failed to parse player response JSON");
-  }
-
-  const status = data?.playabilityStatus?.status;
-  console.log(`[YouTube] Watch page player status: ${status}`);
-
-  if (status === "LOGIN_REQUIRED") {
-    throw new Error("Video requires login (age-restricted?)");
-  }
-
-  const captions = data?.captions;
-  if (!captions) {
-    throw new Error("No captions in watch page player response");
-  }
-
-  const tracks = captions?.playerCaptionsTracklistRenderer?.captionTracks;
-  if (!tracks || tracks.length === 0) {
-    throw new Error("No caption tracks in watch page response");
-  }
-
-  const manualTrack = tracks.find(
+  captionsList: any[]
+): Promise<TranscriptSegment[]> {
+  // Prefer English manual captions, then English auto, then first available
+  const manualEn = captionsList.find(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (t: any) => t.languageCode === "en" && t.kind !== "asr"
+    (c: any) =>
+      c.language_code === "en" &&
+      !c.label?.toLowerCase().includes("auto")
   );
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const autoTrack = tracks.find((t: any) => t.languageCode === "en");
-  const selected = manualTrack || autoTrack || tracks[0];
+  const autoEn = captionsList.find(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (c: any) => c.language_code === "en"
+  );
+  const selected = manualEn || autoEn || captionsList[0];
 
-  return fetchCaptionTrack(selected.baseUrl);
-}
+  console.log(
+    `[YouTube] Using caption: lang=${selected.language_code}, label=${selected.label}`
+  );
 
-async function fetchCaptionTrack(
-  baseUrl: string
-): Promise<TranscriptSegment[]> {
-  const url = baseUrl.startsWith("http")
-    ? baseUrl
-    : `https://www.youtube.com${baseUrl}`;
-
-  console.log(`[YouTube] Fetching caption track from: ${url.substring(0, 100)}...`);
-
-  const res = await fetch(url, {
-    headers: {
-      "User-Agent":
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36",
-      "Accept-Language": "en-US,en;q=0.9",
-    },
-  });
-
-  if (!res.ok) {
-    throw new Error(`Caption track returned ${res.status}`);
+  // Fetch the actual caption content
+  // The Invidious API returns captions in various formats
+  // Use the label to construct the URL, or use the direct URL if available
+  let captionUrl: string;
+  if (selected.url) {
+    // Some instances return absolute URLs, others return relative
+    captionUrl = selected.url.startsWith("http")
+      ? selected.url
+      : `${instance}${selected.url}`;
+  } else {
+    captionUrl = `${instance}/api/v1/captions/${videoId}?label=${encodeURIComponent(selected.label)}`;
   }
 
-  const xml = await res.text();
-  console.log(`[YouTube] Caption XML size: ${xml.length} chars`);
+  const captionRes = await fetch(captionUrl, {
+    signal: AbortSignal.timeout(5000),
+  });
 
+  if (!captionRes.ok) {
+    throw new Error(`Caption download returned ${captionRes.status}`);
+  }
+
+  const contentType = captionRes.headers.get("content-type") || "";
+  const body = await captionRes.text();
+
+  console.log(
+    `[YouTube] Caption response: ${body.length} chars, type=${contentType}`
+  );
+
+  // Parse based on format — could be XML (srv1/srv3) or VTT
+  if (body.includes("<text") || body.includes("<body")) {
+    return parseXmlCaptions(body);
+  }
+  if (body.includes("WEBVTT") || body.includes("-->")) {
+    return parseVttCaptions(body);
+  }
+
+  // Try XML parsing as default
+  return parseXmlCaptions(body);
+}
+
+function parseXmlCaptions(xml: string): TranscriptSegment[] {
   const segments: TranscriptSegment[] = [];
   const textRegex =
     /<text\s+start="([^"]+)"\s+dur="([^"]+)"[^>]*>([\s\S]*?)<\/text>/g;
@@ -343,11 +189,59 @@ async function fetchCaptionTrack(
     }
   }
 
+  // Try alternate XML format (srv3)
   if (segments.length === 0) {
-    throw new Error("Transcript XML was empty or unparseable");
+    const pRegex =
+      /<p\s+t="(\d+)"\s+d="(\d+)"[^>]*>([\s\S]*?)<\/p>/g;
+    while ((match = pRegex.exec(xml)) !== null) {
+      const start = parseInt(match[1]) / 1000;
+      const duration = parseInt(match[2]) / 1000;
+      const text = decodeXmlEntities(match[3].replace(/<[^>]+>/g, "").trim());
+      if (text) {
+        segments.push({ text, start, duration });
+      }
+    }
+  }
+
+  if (segments.length === 0) {
+    throw new Error("Could not parse caption XML");
   }
 
   return segments;
+}
+
+function parseVttCaptions(vtt: string): TranscriptSegment[] {
+  const segments: TranscriptSegment[] = [];
+  // Match VTT cues: "00:00:01.234 --> 00:00:05.678\nText here"
+  const cueRegex =
+    /(\d{2}:\d{2}:\d{2}\.\d{3})\s+-->\s+(\d{2}:\d{2}:\d{2}\.\d{3})\n([\s\S]*?)(?=\n\n|\n\d{2}:|\s*$)/g;
+
+  let match;
+  while ((match = cueRegex.exec(vtt)) !== null) {
+    const start = parseVttTimestamp(match[1]);
+    const end = parseVttTimestamp(match[2]);
+    const text = match[3]
+      .replace(/<[^>]+>/g, "") // strip HTML tags
+      .replace(/\n/g, " ")
+      .trim();
+    if (text) {
+      segments.push({ text, start, duration: end - start });
+    }
+  }
+
+  if (segments.length === 0) {
+    throw new Error("Could not parse VTT captions");
+  }
+
+  return segments;
+}
+
+function parseVttTimestamp(ts: string): number {
+  const parts = ts.split(":");
+  const hours = parseInt(parts[0]);
+  const minutes = parseInt(parts[1]);
+  const [seconds, ms] = parts[2].split(".");
+  return hours * 3600 + minutes * 60 + parseInt(seconds) + parseInt(ms) / 1000;
 }
 
 function decodeXmlEntities(text: string): string {
@@ -368,22 +262,8 @@ export async function extractYouTube(url: string) {
 
   console.log(`[YouTube] Extracting video: ${videoId}`);
 
-  // Fetch title from oEmbed (no API key needed, reliable from any IP)
-  let title = "YouTube Video";
-  try {
-    const res = await fetch(
-      `https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${videoId}&format=json`
-    );
-    if (res.ok) {
-      const data = await res.json();
-      title = data.title;
-    }
-  } catch {
-    // Fall back to generic title
-  }
-
-  // Try all methods to get transcript
-  const segments = await fetchTranscriptInnertube(videoId);
+  // Use Invidious API — bypasses YouTube's datacenter IP blocking
+  const { segments, title } = await fetchTranscriptInvidious(videoId);
   const content = segments.map((s) => s.text).join(" ");
   return { title, content, type: "youtube" as const, url };
 }
