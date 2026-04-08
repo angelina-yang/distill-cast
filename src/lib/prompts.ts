@@ -37,7 +37,7 @@ export function buildSummarizeMessages(
   type: "youtube" | "article",
   language: string = "en"
 ) {
-  const truncated = content.slice(0, 15_000);
+  const truncated = content.slice(0, 50_000);
   const langName = LANGUAGE_NAMES[language] || "English";
   const langNote = language === "en" ? "" : ` Please write the summary in ${langName}.`;
 
