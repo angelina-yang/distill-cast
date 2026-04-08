@@ -105,7 +105,10 @@ export default function Home() {
             {/* URL input — always visible when keys are set */}
             {hasKeys && (
               <div className="max-w-2xl mx-auto mb-6">
-                <UrlInput onSubmit={addUrls} disabled={isProcessing} />
+                <UrlInput
+                  onSubmit={addUrls}
+                  existingUrls={items.map((i) => i.url)}
+                />
               </div>
             )}
 
