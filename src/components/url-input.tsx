@@ -13,11 +13,10 @@ export function UrlInput({ onSubmit, existingUrls = [] }: UrlInputProps) {
 
   const handleSubmit = () => {
     const urls = parseUrls(input);
-    // Filter out URLs that are already in the playlist
     const newUrls = urls.filter((url) => !existingUrls.includes(url));
     if (newUrls.length > 0) {
       onSubmit(newUrls);
-      setInput(""); // Clear after submitting
+      setInput("");
     }
   };
 
@@ -38,10 +37,15 @@ export function UrlInput({ onSubmit, existingUrls = [] }: UrlInputProps) {
         onChange={(e) => setInput(e.target.value)}
         onKeyDown={handleKeyDown}
         placeholder={"Paste one or more URLs, one per line...\n\nhttps://youtube.com/watch?v=...\nhttps://example.com/article"}
-        className="w-full h-32 p-4 bg-zinc-900 border border-zinc-700 rounded-xl text-white placeholder-zinc-500 resize-none focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 font-mono text-sm"
+        className="w-full h-32 p-4 rounded-xl resize-none focus:outline-none focus:ring-1 font-mono text-sm transition-colors"
+        style={{
+          background: "var(--bg-input)",
+          border: "1px solid var(--border-secondary)",
+          color: "var(--text-primary)",
+        }}
       />
       <div className="flex items-center justify-between mt-2">
-        <span className="text-sm text-zinc-500">
+        <span className="text-sm" style={{ color: "var(--text-muted)" }}>
           {newUrls.length > 0
             ? `${newUrls.length} new link${newUrls.length > 1 ? "s" : ""}`
             : allUrls.length > 0 && duplicates > 0
@@ -51,7 +55,8 @@ export function UrlInput({ onSubmit, existingUrls = [] }: UrlInputProps) {
         <button
           onClick={handleSubmit}
           disabled={newUrls.length === 0}
-          className="px-5 py-2 bg-violet-600 hover:bg-violet-500 disabled:bg-zinc-700 disabled:text-zinc-500 text-white font-medium rounded-lg transition-colors text-sm"
+          className="px-5 py-2 text-white font-medium rounded-lg transition-colors text-sm disabled:opacity-40"
+          style={{ background: newUrls.length > 0 ? "var(--accent)" : "var(--text-muted)" }}
         >
           Add to Playlist
         </button>

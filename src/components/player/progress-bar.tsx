@@ -31,26 +31,25 @@ export function ProgressBar({
 
   return (
     <div className="flex items-center gap-3 w-full">
-      <span className="text-xs text-zinc-500 w-10 text-right font-mono">
+      <span className="text-xs w-10 text-right font-mono" style={{ color: "var(--text-muted)" }}>
         {formatTime(currentTime)}
       </span>
-      {/* Outer div has extra padding for easier clicking */}
       <div
         className={`flex-1 py-2 ${disabled ? "cursor-default" : "cursor-pointer"} group`}
         onClick={handleClick}
       >
-        <div className="h-1.5 bg-zinc-700 rounded-full relative">
+        <div className="h-1.5 rounded-full relative" style={{ background: "var(--progress-bg)" }}>
           <div
-            className="h-full bg-violet-500 rounded-full relative transition-all"
-            style={{ width: `${progress}%` }}
+            className="h-full rounded-full relative transition-all"
+            style={{ width: `${progress}%`, background: "var(--progress-fill)" }}
           >
             {!disabled && (
-              <div className="absolute right-0 top-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity" />
+              <div className="absolute right-0 top-1/2 -translate-y-1/2 w-3 h-3 rounded-full opacity-0 group-hover:opacity-100 transition-opacity" style={{ background: "var(--accent)" }} />
             )}
           </div>
         </div>
       </div>
-      <span className="text-xs text-zinc-500 w-10 font-mono">
+      <span className="text-xs w-10 font-mono" style={{ color: "var(--text-muted)" }}>
         {formatTime(duration)}
       </span>
     </div>
