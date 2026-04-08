@@ -14,6 +14,11 @@ export async function POST(req: NextRequest) {
     }
 
     const apiKey = req.headers.get("x-claude-api-key") || undefined;
+    const usingVip = !apiKey;
+    console.log(
+      `[Summarize] title="${title?.substring(0, 50)}", type=${type}, lang=${language}, mode=${usingVip ? "VIP" : "BYOK"}, contentLen=${content?.length}`
+    );
+
     const summary = await summarize(
       title || "Untitled",
       content,
@@ -21,9 +26,11 @@ export async function POST(req: NextRequest) {
       apiKey,
       language || "en"
     );
+    console.log(`[Summarize] Success: ${summary.length} chars`);
     return NextResponse.json({ summary });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Summarization failed";
+    console.error(`[Summarize] Error: ${message}`);
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
