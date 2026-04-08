@@ -24,14 +24,16 @@ export function WelcomeModal({ isOpen, onComplete }: WelcomeModalProps) {
 
     setSubmitting(true);
     try {
-      // Only subscribe to Substack if user opted in
-      if (newsletter) {
-        await fetch("/api/register", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name: name.trim(), email: email.trim() }),
-        });
-      }
+      // Always register (logs to Google Sheet), Substack only if opted in
+      await fetch("/api/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: name.trim(),
+          email: email.trim(),
+          newsletter,
+        }),
+      });
     } catch {
       // Don't block registration if Substack fails
     }

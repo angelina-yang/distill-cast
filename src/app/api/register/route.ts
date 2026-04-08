@@ -1,13 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 
-// Simple in-memory rate limiting (resets on cold start, which is fine for serverless)
+// Simple in-memory rate limiting
 const recentRequests = new Map<string, number>();
-const RATE_LIMIT_WINDOW = 60 * 1000; // 1 minute
-const MAX_REQUESTS = 5; // max 5 registrations per IP per minute
+const RATE_LIMIT_WINDOW = 60 * 1000;
+const MAX_REQUESTS = 5;
 
 function isRateLimited(ip: string): boolean {
   const now = Date.now();
-  // Clean old entries
   for (const [key, timestamp] of recentRequests) {
     if (now - timestamp > RATE_LIMIT_WINDOW) recentRequests.delete(key);
   }
@@ -21,13 +20,12 @@ function isRateLimited(ip: string): boolean {
 
 export async function POST(req: NextRequest) {
   try {
-    // Rate limit by IP
     const ip = req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip") || "unknown";
     if (isRateLimited(ip)) {
       return NextResponse.json({ error: "Too many requests" }, { status: 429 });
     }
 
-    const { name, email } = await req.json();
+    const { name, email, newsletter } = await req.json();
     if (!email || !email.includes("@") || email.length > 320) {
       return NextResponse.json({ error: "Valid email required" }, { status: 400 });
     }
@@ -36,21 +34,44 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Valid name required" }, { status: 400 });
     }
 
-    // Subscribe to Substack newsletter
-    const substackRes = await fetch(
-      "https://angelinayang.substack.com/api/v1/free",
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email,
-          first_url: "https://tl-listen.vercel.app",
-          first_referrer: "tl-listen",
-        }),
+    // 1. Log to Google Sheet (always — captures all signups)
+    const sheetWebhook = process.env.GOOGLE_SHEET_WEBHOOK;
+    if (sheetWebhook) {
+      try {
+        await fetch(sheetWebhook, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name,
+            email,
+            newsletter: Boolean(newsletter),
+            source: "tl-listen",
+          }),
+        });
+      } catch {
+        // Don't block registration if Sheet logging fails
+        console.error("[Register] Google Sheet logging failed");
       }
-    );
+    }
 
-    console.log(`[Register] ${name} <${email}> - Substack status: ${substackRes.status}`);
+    // 2. Subscribe to Substack (only if user opted in)
+    if (newsletter) {
+      try {
+        await fetch("https://angelinayang.substack.com/api/v1/free", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            email,
+            first_url: "https://tl-listen.vercel.app",
+            first_referrer: "tl-listen",
+          }),
+        });
+      } catch {
+        console.error("[Register] Substack subscription failed");
+      }
+    }
+
+    console.log(`[Register] ${name} <${email}> newsletter=${newsletter}`);
 
     return NextResponse.json({ success: true });
   } catch (err) {
