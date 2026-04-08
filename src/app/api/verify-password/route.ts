@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { timingSafeEqual } from "crypto";
+import { isRateLimited, getClientIp } from "@/lib/rate-limit";
 
 function safeCompare(a: string, b: string): boolean {
-  // Pad to same length to avoid leaking length info
   const maxLen = Math.max(a.length, b.length);
   const bufA = Buffer.alloc(maxLen, 0);
   const bufB = Buffer.alloc(maxLen, 0);
@@ -11,8 +11,21 @@ function safeCompare(a: string, b: string): boolean {
   return a.length === b.length && timingSafeEqual(bufA, bufB);
 }
 
+// Strict rate limit: 5 attempts per IP per 5 minutes
+const MAX_ATTEMPTS = 5;
+const WINDOW_MS = 5 * 60 * 1000;
+
 export async function POST(req: NextRequest) {
   try {
+    const ip = getClientIp(req.headers);
+
+    if (isRateLimited(`vip:${ip}`, MAX_ATTEMPTS, WINDOW_MS)) {
+      return NextResponse.json(
+        { error: "Too many attempts. Please try again in a few minutes." },
+        { status: 429 }
+      );
+    }
+
     const { password } = await req.json();
     const validPassword = process.env.VIP_PASSWORD;
 
