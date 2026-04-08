@@ -12,6 +12,9 @@ interface AudioPlayerProps {
   onTogglePlayPause: () => void;
   onSkipNext: () => void;
   onSkipPrevious: () => void;
+  onSkipForward: () => void;
+  onSkipBackward: () => void;
+  onReplay: () => void;
   onSeek: (time: number) => void;
 }
 
@@ -24,9 +27,24 @@ export function AudioPlayer({
   onTogglePlayPause,
   onSkipNext,
   onSkipPrevious,
+  onSkipForward,
+  onSkipBackward,
+  onReplay,
   onSeek,
 }: AudioPlayerProps) {
   if (!currentItem) return null;
+
+  const isReady = currentItem.status === "ready";
+  const statusLabel =
+    currentItem.status === "extracting"
+      ? "Extracting content..."
+      : currentItem.status === "summarizing"
+        ? "Summarizing..."
+        : currentItem.status === "generating-audio"
+          ? "Generating audio..."
+          : playingIntro
+            ? "Playing intro..."
+            : null;
 
   return (
     <div className="fixed bottom-0 left-0 right-0 bg-zinc-950 border-t border-zinc-800 px-4 py-3 z-50">
@@ -34,15 +52,33 @@ export function AudioPlayer({
         <div className="flex items-center justify-between">
           <div className="min-w-0 flex-1 mr-4">
             <p className="text-sm text-white truncate">{currentItem.title}</p>
-            {playingIntro && (
-              <p className="text-xs text-violet-400">Playing intro...</p>
+            {statusLabel && (
+              <p className="text-xs text-violet-400">{statusLabel}</p>
             )}
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            {/* Previous track */}
             <button
               onClick={onSkipPrevious}
-              className="text-zinc-400 hover:text-white transition-colors"
-              aria-label="Previous"
+              className="text-zinc-400 hover:text-white transition-colors p-1"
+              aria-label="Previous track"
+            >
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+              >
+                <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z" />
+              </svg>
+            </button>
+
+            {/* Back 10s */}
+            <button
+              onClick={onSkipBackward}
+              disabled={!isReady}
+              className="text-zinc-400 hover:text-white disabled:text-zinc-700 transition-colors p-1 relative"
+              aria-label="Back 10 seconds"
             >
               <svg
                 width="20"
@@ -50,12 +86,18 @@ export function AudioPlayer({
                 viewBox="0 0 24 24"
                 fill="currentColor"
               >
-                <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z" />
+                <path d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z" />
               </svg>
+              <span className="absolute inset-0 flex items-center justify-center text-[8px] font-bold mt-[1px]">
+                10
+              </span>
             </button>
+
+            {/* Play/Pause */}
             <button
               onClick={onTogglePlayPause}
-              className="w-10 h-10 flex items-center justify-center bg-white rounded-full text-black hover:scale-105 transition-transform"
+              disabled={!isReady}
+              className="w-10 h-10 flex items-center justify-center bg-white disabled:bg-zinc-600 rounded-full text-black disabled:text-zinc-400 hover:scale-105 disabled:hover:scale-100 transition-transform"
               aria-label={isPlaying ? "Pause" : "Play"}
             >
               {isPlaying ? (
@@ -78,10 +120,13 @@ export function AudioPlayer({
                 </svg>
               )}
             </button>
+
+            {/* Forward 10s */}
             <button
-              onClick={onSkipNext}
-              className="text-zinc-400 hover:text-white transition-colors"
-              aria-label="Next"
+              onClick={onSkipForward}
+              disabled={!isReady}
+              className="text-zinc-400 hover:text-white disabled:text-zinc-700 transition-colors p-1 relative"
+              aria-label="Forward 10 seconds"
             >
               <svg
                 width="20"
@@ -89,7 +134,43 @@ export function AudioPlayer({
                 viewBox="0 0 24 24"
                 fill="currentColor"
               >
+                <path d="M12 5V1l5 5-5 5V7c-3.31 0-6 2.69-6 6s2.69 6 6 6 6-2.69 6-6h2c0 4.42-3.58 8-8 8s-8-3.58-8-8 3.58-8 8-8z" />
+              </svg>
+              <span className="absolute inset-0 flex items-center justify-center text-[8px] font-bold mt-[1px]">
+                10
+              </span>
+            </button>
+
+            {/* Next track */}
+            <button
+              onClick={onSkipNext}
+              className="text-zinc-400 hover:text-white transition-colors p-1"
+              aria-label="Next track"
+            >
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+              >
                 <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z" />
+              </svg>
+            </button>
+
+            {/* Replay */}
+            <button
+              onClick={onReplay}
+              disabled={!isReady}
+              className="text-zinc-400 hover:text-white disabled:text-zinc-700 transition-colors p-1 ml-1"
+              aria-label="Replay"
+            >
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+              >
+                <path d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z" />
               </svg>
             </button>
           </div>
@@ -98,6 +179,7 @@ export function AudioPlayer({
           currentTime={currentTime}
           duration={duration}
           onSeek={onSeek}
+          disabled={!isReady}
         />
       </div>
     </div>

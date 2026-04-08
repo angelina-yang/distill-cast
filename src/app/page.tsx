@@ -37,6 +37,9 @@ export default function Home() {
     togglePlayPause,
     skipNext,
     skipPrevious,
+    skipForward,
+    skipBackward,
+    replay,
     playItem,
     seek,
   } = useAudioPlayer(items, { onItemFinished: handleItemFinished });
@@ -173,6 +176,9 @@ export default function Home() {
         onTogglePlayPause={togglePlayPause}
         onSkipNext={skipNext}
         onSkipPrevious={skipPrevious}
+        onSkipForward={skipForward}
+        onSkipBackward={skipBackward}
+        onReplay={replay}
         onSeek={seek}
       />
 

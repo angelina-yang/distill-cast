@@ -190,8 +190,34 @@ export function useAudioPlayer(items: PlaylistItem[], options?: AudioPlayerOptio
 
   const seek = useCallback((time: number) => {
     const audio = audioRef.current;
-    if (audio) audio.currentTime = time;
+    if (audio && audio.duration) {
+      audio.currentTime = Math.max(0, Math.min(time, audio.duration));
+    }
   }, []);
+
+  const skipForward = useCallback(() => {
+    const audio = audioRef.current;
+    if (audio && audio.duration) {
+      audio.currentTime = Math.min(audio.currentTime + 10, audio.duration);
+    }
+  }, []);
+
+  const skipBackward = useCallback(() => {
+    const audio = audioRef.current;
+    if (audio) {
+      audio.currentTime = Math.max(audio.currentTime - 10, 0);
+    }
+  }, []);
+
+  const replay = useCallback(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    if (currentIndex >= 0) {
+      setFinished(false);
+      audio.currentTime = 0;
+      audio.play().catch(() => {});
+    }
+  }, [currentIndex]);
 
   const currentItem = currentIndex >= 0 ? items[currentIndex] : null;
 
@@ -206,6 +232,9 @@ export function useAudioPlayer(items: PlaylistItem[], options?: AudioPlayerOptio
     togglePlayPause,
     skipNext,
     skipPrevious,
+    skipForward,
+    skipBackward,
+    replay,
     playItem,
     seek,
   };
