@@ -1,39 +1,93 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/* ─── Theme Variables ─── */
+:root, .light {
+  --bg-primary: #ffffff;
+  --bg-surface: #f4f4f5;
+  --bg-elevated: #ffffff;
+  --bg-input: #f4f4f5;
+  --bg-player: #fafafa;
+  --bg-sidebar: #f8f8fa;
+  --bg-sidebar-gradient-start: #f0eef5;
+  --bg-sidebar-gradient-end: #f8f8fa;
+  --bg-card: #f4f4f5;
+  --bg-backdrop: rgba(0, 0, 0, 0.4);
+  --bg-hover: #e4e4e7;
+  --bg-active: rgba(124, 58, 237, 0.08);
+  --text-primary: #18181b;
+  --text-secondary: #3f3f46;
+  --text-muted: #71717a;
+  --text-faint: #a1a1aa;
+  --border-primary: #e4e4e7;
+  --border-secondary: #d4d4d8;
+  --accent: #7c3aed;
+  --accent-hover: #6d28d9;
+  --accent-surface: rgba(124, 58, 237, 0.08);
+  --highlight-bg: rgba(124, 58, 237, 0.15);
+  --highlight-text: #4c1d95;
+  --past-text: #a1a1aa;
+  --progress-bg: #e4e4e7;
+  --progress-fill: #7c3aed;
+}
+
+.dark {
+  --bg-primary: #000000;
+  --bg-surface: #09090b;
+  --bg-elevated: #18181b;
+  --bg-input: #27272a;
+  --bg-player: #09090b;
+  --bg-sidebar: #09090b;
+  --bg-sidebar-gradient-start: #0f0a1a;
+  --bg-sidebar-gradient-end: #09090b;
+  --bg-card: #18181b;
+  --bg-backdrop: rgba(0, 0, 0, 0.6);
+  --bg-hover: #27272a;
+  --bg-active: rgba(124, 58, 237, 0.15);
+  --text-primary: #ffffff;
+  --text-secondary: #d4d4d8;
+  --text-muted: #71717a;
+  --text-faint: #52525b;
+  --border-primary: #27272a;
+  --border-secondary: #3f3f46;
+  --accent: #7c3aed;
+  --accent-hover: #8b5cf6;
+  --accent-surface: rgba(124, 58, 237, 0.15);
+  --highlight-bg: rgba(250, 204, 21, 0.25);
+  --highlight-text: #fef08a;
+  --past-text: #52525b;
+  --progress-bg: #3f3f46;
+  --progress-fill: #7c3aed;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  --color-background: var(--bg-primary);
+  --color-foreground: var(--text-primary);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
 body {
-  background: var(--background);
-  color: var(--foreground);
+  background: var(--bg-primary);
+  color: var(--text-primary);
   font-family: Arial, Helvetica, sans-serif;
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
+/* ─── Animations ─── */
 @keyframes slide-in {
-  from {
-    transform: translateX(-100%);
-  }
-  to {
-    transform: translateX(0);
-  }
+  from { transform: translateX(-100%); }
+  to { transform: translateX(0); }
 }
 
 .animate-slide-in {
   animation: slide-in 0.2s ease-out;
 }
+
+@keyframes eq-bar {
+  0%, 100% { height: 40%; }
+  50% { height: 100%; }
+}
+
+.animate-eq-1 { animation: eq-bar 0.8s ease-in-out infinite; }
+.animate-eq-2 { animation: eq-bar 0.8s ease-in-out 0.2s infinite; }
+.animate-eq-3 { animation: eq-bar 0.8s ease-in-out 0.4s infinite; }

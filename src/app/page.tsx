@@ -11,13 +11,12 @@ import { useProcessing } from "@/hooks/use-processing";
 import { useAudioPlayer } from "@/hooks/use-audio-player";
 import { useApiKeys } from "@/hooks/use-api-keys";
 import { useUser } from "@/hooks/use-user";
+import { useTheme } from "@/hooks/use-theme";
 
 /** Split summary into sentences for highlighting during playback */
 function splitSentences(text: string): string[] {
-  // Split on sentence-ending punctuation followed by whitespace
   const parts = text.match(/[^.!?\n]+[.!?\n]+[\s]*/g);
   if (!parts) return [text];
-  // If there's leftover text, append it
   const joined = parts.join("");
   if (joined.length < text.length) {
     parts.push(text.slice(joined.length));
@@ -30,8 +29,8 @@ export default function Home() {
   const { keys, hasKeys, loaded, saveKeys, clearKeys } = useApiKeys();
   const { items, isProcessing, addUrls, toggleDone, removeItem, clearAll } =
     useProcessing(keys);
+  const { isDark, toggleTheme, loaded: themeLoaded } = useTheme();
 
-  // Mark item as done when audio finishes playing
   const handleItemFinished = useCallback(
     (itemId: string) => {
       toggleDone(itemId);
@@ -71,23 +70,18 @@ export default function Home() {
   const hasItems = items.length > 0;
   const activeItems = items.filter((i) => !i.done);
   const hasReadyItems = activeItems.some((i) => i.status === "ready");
-  // Show play button when items are ready but nothing has started playing yet
   const showPlayButton = hasReadyItems && !isPlaying && currentIndex < 0;
 
   const displayItem =
     currentIndex >= 0 && items[currentIndex] ? items[currentIndex] : null;
 
-  // Split summary into sentences for highlighting
   const sentences = useMemo(() => {
     if (!displayItem?.summary) return [];
     return splitSentences(displayItem.summary);
   }, [displayItem?.summary]);
 
-  // Estimate which sentence is currently being spoken
   const activeSentenceIndex = useMemo(() => {
     if (!isPlaying || !duration || sentences.length === 0) return -1;
-    // Estimate based on proportional position through the text
-    // Each sentence gets a weight proportional to its character length
     const totalChars = sentences.reduce((sum, s) => sum + s.length, 0);
     const progress = currentTime / duration;
     let charsSoFar = 0;
@@ -98,18 +92,19 @@ export default function Home() {
     return sentences.length - 1;
   }, [isPlaying, currentTime, duration, sentences]);
 
-  if (!loaded || !userLoaded) return null;
+  if (!loaded || !userLoaded || !themeLoaded) return null;
 
   return (
-    <div className="min-h-screen bg-black text-white flex flex-col">
+    <div
+      className="min-h-screen flex flex-col transition-colors duration-200"
+      style={{ background: "var(--bg-primary)", color: "var(--text-primary)" }}
+    >
       <Header
         onClearAll={clearAll}
         showClear={hasItems}
         onOpenSettings={() => setSettingsOpen(true)}
         hasKeys={hasKeys}
         onTogglePlaylist={() => {
-          // On mobile: toggle overlay drawer
-          // On desktop: toggle sidebar visibility
           if (window.innerWidth < 768) {
             setPlaylistOpen((prev) => !prev);
           } else {
@@ -119,6 +114,8 @@ export default function Home() {
         playlistOpen={playlistOpen || sidebarVisible}
         onPlay={togglePlayPause}
         showPlayButton={showPlayButton}
+        isDark={isDark}
+        onToggleTheme={toggleTheme}
       />
 
       {!hasItems && !hasKeys ? (
@@ -126,14 +123,15 @@ export default function Home() {
           <div className="flex flex-col items-center gap-6">
             <div className="text-center space-y-2">
               <h2 className="text-3xl font-bold">Your audio briefing</h2>
-              <p className="text-zinc-400 max-w-md">
+              <p className="max-w-md" style={{ color: "var(--text-muted)" }}>
                 Paste article or YouTube links below. We&apos;ll distill them
                 into a podcast-style audio briefing you can listen to on the go.
               </p>
             </div>
             <button
               onClick={() => setSettingsOpen(true)}
-              className="px-5 py-2.5 bg-violet-600 hover:bg-violet-500 text-white font-medium rounded-lg transition-colors"
+              className="px-5 py-2.5 text-white font-medium rounded-lg transition-colors"
+              style={{ background: "var(--accent)" }}
             >
               Set up API Keys to get started
             </button>
@@ -141,7 +139,6 @@ export default function Home() {
         </main>
       ) : (
         <div className="flex-1 flex min-h-0 pb-20">
-          {/* Sidebar */}
           {hasItems && (
             <SidebarPlaylist
               items={items}
@@ -156,9 +153,7 @@ export default function Home() {
             />
           )}
 
-          {/* Main content */}
           <main className="flex-1 overflow-y-auto p-4 md:p-6">
-            {/* URL input — always visible when keys are set */}
             {hasKeys && (
               <div className="max-w-2xl mx-auto mb-6">
                 <UrlInput
@@ -168,23 +163,25 @@ export default function Home() {
               </div>
             )}
 
-            {/* Play button */}
             {hasReadyItems && !isPlaying && currentIndex < 0 && (
               <div className="flex items-center justify-center mt-8">
                 <button
                   onClick={togglePlayPause}
-                  className="px-8 py-3 bg-violet-600 hover:bg-violet-500 text-white font-medium rounded-full transition-colors text-lg"
+                  className="px-8 py-3 text-white font-medium rounded-full transition-colors text-lg"
+                  style={{ background: "var(--accent)" }}
                 >
                   Play Briefing
                 </button>
               </div>
             )}
 
-            {/* Now playing summary */}
             {displayItem && displayItem.summary && (
               <div className="max-w-2xl mx-auto mt-4">
                 <div className="mb-4">
-                  <span className="text-xs text-violet-400 uppercase tracking-wider font-medium">
+                  <span
+                    className="text-xs uppercase tracking-wider font-medium"
+                    style={{ color: "var(--accent)" }}
+                  >
                     {currentIndex >= 0 && isPlaying
                       ? "Now Playing"
                       : finished
@@ -194,27 +191,44 @@ export default function Home() {
                   <h2 className="text-xl font-bold mt-1">
                     {displayItem.title}
                   </h2>
-                  <p className="text-sm text-zinc-500 mt-1 break-all">
-                    {displayItem.type === "youtube" ? "YouTube" : "Article"} —{" "}
+                  <p className="text-sm mt-1 break-all" style={{ color: "var(--text-muted)" }}>
+                    {displayItem.type === "youtube" ? "YouTube" : "Article"} &mdash;{" "}
                     {displayItem.url}
                   </p>
                 </div>
-                <div className="bg-zinc-900 rounded-xl p-4 md:p-6 border border-zinc-800">
-                  <h3 className="text-sm font-semibold text-zinc-400 uppercase tracking-wider mb-3">
+                <div
+                  className="rounded-xl p-4 md:p-6"
+                  style={{
+                    background: "var(--bg-card)",
+                    border: "1px solid var(--border-primary)",
+                  }}
+                >
+                  <h3
+                    className="text-sm font-semibold uppercase tracking-wider mb-3"
+                    style={{ color: "var(--text-muted)" }}
+                  >
                     Summary
                   </h3>
-                  <div className="text-zinc-200 leading-relaxed whitespace-pre-wrap">
+                  <div
+                    className="leading-relaxed whitespace-pre-wrap"
+                    style={{ color: "var(--text-secondary)" }}
+                  >
                     {isPlaying && sentences.length > 0
                       ? sentences.map((sentence, i) => (
                           <span
                             key={i}
-                            className={`transition-colors duration-300 ${
-                              i === activeSentenceIndex
-                                ? "text-white bg-violet-500/20 rounded px-0.5"
+                            className="transition-colors duration-300 rounded px-0.5"
+                            style={{
+                              ...(i === activeSentenceIndex
+                                ? {
+                                    background: "var(--highlight-bg)",
+                                    color: "var(--highlight-text)",
+                                    fontWeight: 500,
+                                  }
                                 : i < activeSentenceIndex
-                                  ? "text-zinc-400"
-                                  : "text-zinc-200"
-                            }`}
+                                  ? { color: "var(--past-text)" }
+                                  : { color: "var(--text-secondary)" }),
+                            }}
                           >
                             {sentence}
                           </span>
@@ -225,9 +239,8 @@ export default function Home() {
               </div>
             )}
 
-            {/* Empty state */}
             {!hasItems && hasKeys && (
-              <div className="text-center mt-8 text-zinc-500">
+              <div className="text-center mt-8" style={{ color: "var(--text-muted)" }}>
                 <p>Paste a link above to get started</p>
               </div>
             )}
