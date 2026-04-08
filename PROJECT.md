@@ -24,7 +24,7 @@ There is **no traditional backend** — no database, no server, no user accounts
 |-----------|---------|
 | **Next.js 16 (App Router)** | Full-stack React framework with serverless API routes |
 | **TypeScript** | Type safety across frontend and API routes |
-| **Tailwind CSS** | Utility-first CSS framework |
+| **Tailwind CSS + CSS Custom Properties** | Utility-first CSS framework with a semantic theme variable system for dark/light mode |
 | **PWA (manifest.json + Service Worker)** | Add-to-home-screen, app-like experience |
 
 ### External APIs (the real workhorses)
@@ -48,7 +48,7 @@ There is **no traditional backend** — no database, no server, no user accounts
 
 | What | Where | How |
 |------|-------|-----|
-| API keys, language preference | Browser localStorage | Never sent to server except as request headers for API calls |
+| API keys, language, theme preference | Browser localStorage | Never sent to server except as request headers for API calls |
 | User registration (name, email) | Browser localStorage | Also logged to Google Sheet on signup |
 | Audio files | Browser memory (Blob URLs) | Generated per session, not persisted |
 | Playlist state | React state (in-memory) | Lost on page refresh |
@@ -99,7 +99,7 @@ distill-cast/
 │   │   ├── page.tsx                # Main page (single-page app)
 │   │   └── api/                    # 6 API routes (see above)
 │   ├── components/
-│   │   ├── header.tsx              # App header with settings, coffee link
+│   │   ├── header.tsx              # App header with logo, theme toggle, play button, settings
 │   │   ├── url-input.tsx           # Link input with deduplication
 │   │   ├── sidebar-playlist.tsx    # Left sidebar: active + done items
 │   │   ├── welcome-modal.tsx       # First-time user registration
@@ -112,7 +112,8 @@ distill-cast/
 │   │   ├── use-processing.ts       # Pipeline orchestrator (extract→summarize→TTS)
 │   │   ├── use-audio-player.ts     # Audio playback, auto-advance, done tracking
 │   │   ├── use-api-keys.ts         # API key + language storage (localStorage)
-│   │   └── use-user.ts             # User registration state (localStorage)
+│   │   ├── use-user.ts             # User registration state (localStorage)
+│   │   └── use-theme.ts            # Dark/light theme toggle (localStorage)
 │   ├── lib/
 │   │   ├── extract-youtube.ts      # YouTube transcript fetcher
 │   │   ├── extract-article.ts      # Article content extractor
@@ -179,8 +180,20 @@ distill-cast/
 
 | Feature | Description |
 |---------|-------------|
-| **Live sentence tracking** | While audio plays, the summary text highlights the estimated current sentence with a violet background. Already-read sentences dim to gray. Gives you a visual sense of where you are in the briefing if you're reading along on your computer. |
+| **Live sentence tracking** | While audio plays, the summary text highlights the estimated current sentence. Already-read sentences dim. Gives you a visual sense of where you are in the briefing if you're reading along on your computer. |
+| **Theme-adaptive colors** | Dark mode uses a yellow highlight (high contrast on black). Light mode uses a purple highlight (high contrast on white). The highlight color was specifically chosen for readability in each mode. |
 | **Proportional estimation** | Since we don't have word-level timestamps from ElevenLabs, highlighting is estimated by mapping playback progress to sentence position by character count. Not perfectly synced, but surprisingly useful. |
+
+### Theming & Branding
+
+| Feature | Description |
+|---------|-------------|
+| **Dark/Light mode** | Full dark and light theme support. Dark mode is the default. Toggle via a sun/moon icon in the header. Preference is saved in localStorage across sessions. |
+| **CSS custom property system** | All colors are defined as semantic CSS variables (`--bg-primary`, `--text-primary`, `--accent`, `--highlight-bg`, etc.) in `:root` (light) and `.dark` (dark) selectors. Components reference these variables instead of hardcoded Tailwind color classes, making theme switching a single class toggle on `<html>`. |
+| **Smooth transitions** | Background and text colors transition with `200ms ease` when switching themes, avoiding a jarring flash. |
+| **Headphones logo** | A purple rounded-square icon with a headphones SVG serves as the app logo. Appears in the header next to "TL;Listen" and prominently in the welcome modal. Audio-themed, simple, recognizable. |
+| **Sidebar gradient** | The playlist sidebar uses a subtle gradient background (purple-tinted in dark mode, lavender-tinted in light mode) instead of a flat color, adding visual depth. |
+| **Numbered item badges** | Playlist items show their position number in a small purple circle badge instead of plain text, adding polish to the sidebar. |
 
 ### User Management & Access
 
@@ -236,8 +249,8 @@ distill-cast/
 
 **Desktop:**
 ```
-┌──────────────────────────────────────────────────┐
-│  [☰] TL;Listen       [▶ Play] [Clear All] [☕] [⚙️]│  ← Header
+┌───────────────────────────────────────────────────────┐
+│  [☰] [🎧] TL;Listen    [▶ Play] [Clear All] [☀/🌙] [☕] [⚙️]│  ← Header
 ├────────────┬─────────────────────────────────────┤
 │            │                                     │
 │  Playlist  │    URL Input (always visible)        │
@@ -257,7 +270,7 @@ distill-cast/
 **Mobile:**
 ```
 ┌────────────────────────┐
-│ [☰] TL;Listen  [▶] [⚙️]│  ← Compact header
+│ [☰] [🎧] TL;Listen [▶] [☀] [☕] [⚙️]│  ← Compact header
 ├────────────────────────┤
 │                        │
 │  URL Input             │
@@ -411,7 +424,7 @@ All user signups are logged to a Google Sheet via Google Apps Script webhook.
 | RSS podcast feed | Generate a private podcast feed for Apple Podcasts / Spotify / CarPlay |
 | Daily briefing | Auto-fetch from saved sources each morning |
 | Persistent storage | Database to save playlists across sessions |
-| Custom app icon/logo | Branded PWA icon for home screen |
+| Branded PWA icon | Replace generic headphones icon with custom-designed app icon for home screen |
 | Landing page | Marketing page for sharing the tool publicly |
 
 ---
@@ -558,3 +571,21 @@ A log of every significant bug, blocker, and debugging adventure encountered whi
 **Problem**: A friend tried to process a New York Times article. The `@extractus/article-extractor` package fetches the URL server-side, but NYTimes returns a paywall page with minimal content. The extracted text was empty or just the headline.
 
 **Status**: Known limitation — documented but not fixed. Article extraction only works on publicly accessible content. Paywalled sites (NYTimes, WSJ, Bloomberg, etc.) block server-side fetching. Potential future solutions: browser extension that extracts from the user's authenticated session, or reader-mode preprocessing.
+
+### 21. Purple Highlight Invisible on Dark Background
+
+**Problem**: The sentence highlighting during playback used a purple/violet translucent background (`bg-violet-500/20`). On the black background of dark mode, this was nearly invisible — users couldn't see which sentence was being highlighted.
+
+**Fix**: Switched to a **theme-adaptive highlight color system**. Dark mode now uses yellow highlight (`rgba(250, 204, 21, 0.25)`) with yellow text — high contrast on black. Light mode uses purple highlight (`rgba(124, 58, 237, 0.15)`) with deep purple text — high contrast on white. Colors are defined as CSS custom properties (`--highlight-bg`, `--highlight-text`) that swap automatically with the theme.
+
+### 22. Hardcoded Dark Theme Made Light Mode Impossible
+
+**Problem**: Every component used hardcoded Tailwind classes like `bg-black`, `bg-zinc-900`, `text-white`, `border-zinc-800`, etc. Adding a light mode would have required adding `dark:` prefixes to every single class in every component — hundreds of changes with high risk of inconsistency.
+
+**Fix**: Replaced all hardcoded color classes with CSS custom properties. Defined ~25 semantic color tokens (`--bg-primary`, `--bg-surface`, `--bg-elevated`, `--text-primary`, `--text-secondary`, `--text-muted`, `--border-primary`, `--accent`, etc.) with values for both `:root`/`.light` and `.dark` selectors. Components now use inline `style` attributes referencing these variables. Theme switching is a single class toggle on `<html>` — all colors update instantly via CSS cascade. This touched 11 files but resulted in a clean, maintainable theme system.
+
+### 23. Theme Flash on Page Load
+
+**Problem**: With CSS-variable-based theming, there's a risk of FOUC (flash of unstyled content) — the page briefly shows the wrong theme before JavaScript loads and applies the stored preference.
+
+**Fix**: Set `class="dark"` directly on the `<html>` element in `layout.tsx` (server-rendered). Since dark is the default and most common choice, most users see no flash. The `useTheme` hook then runs on mount, reads localStorage, and updates the class if the user prefers light mode. The 200ms CSS transition on background/color makes any switch feel intentional rather than glitchy.
