@@ -61,6 +61,9 @@ export function UrlInput({ onSubmit, existingUrls = [] }: UrlInputProps) {
           Add to Playlist
         </button>
       </div>
+      <p className="text-xs mt-2" style={{ color: "var(--text-faint)" }}>
+        Note: Paywalled articles (NYTimes, WSJ, etc.) and private YouTube videos cannot be extracted.
+      </p>
     </div>
   );
 }
