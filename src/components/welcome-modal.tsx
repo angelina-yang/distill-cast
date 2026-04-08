@@ -82,12 +82,6 @@ export function WelcomeModal({ isOpen, onComplete }: WelcomeModalProps) {
             />
           </div>
 
-          {/* Privacy disclosure — not a checkbox, just info */}
-          <p className="text-xs text-zinc-500 leading-relaxed">
-            This is a free, non-commercial project. Your API keys are stored
-            locally in your browser and never saved on our servers.
-          </p>
-
           {/* Newsletter opt-in — separate, optional, unchecked by default */}
           <div className="flex items-start gap-3">
             <input
@@ -97,7 +91,7 @@ export function WelcomeModal({ isOpen, onComplete }: WelcomeModalProps) {
               className="mt-0.5 w-4 h-4 rounded border-zinc-600 bg-zinc-800 text-violet-500 focus:ring-violet-500 focus:ring-offset-0"
             />
             <p className="text-xs text-zinc-400 leading-relaxed">
-              Also subscribe me to the{" "}
+              Subscribe to the{" "}
               <a
                 href="https://angelinayang.substack.com"
                 target="_blank"
@@ -106,9 +100,18 @@ export function WelcomeModal({ isOpen, onComplete }: WelcomeModalProps) {
               >
                 TwoSetAI newsletter
               </a>{" "}
-              (optional)
+              — new free AI tools, founder insights, and early access to what
+              I&apos;m building
             </p>
           </div>
+
+          {/* Privacy disclosure — not a checkbox, just info */}
+          <p className="text-xs text-zinc-500 leading-relaxed">
+            Your API keys are stored locally in your browser. When you generate
+            a briefing, your keys are sent to our server to make API calls on
+            your behalf — they pass through our server but are never stored,
+            logged, or shared.
+          </p>
 
           <button
             type="submit"
