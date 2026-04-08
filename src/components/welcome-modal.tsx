@@ -10,12 +10,13 @@ interface WelcomeModalProps {
 export function WelcomeModal({ isOpen, onComplete }: WelcomeModalProps) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
-  const [agreed, setAgreed] = useState(false);
+  const [newsletter, setNewsletter] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   if (!isOpen) return null;
 
-  const canSubmit = name.trim() && email.trim() && email.includes("@") && agreed && !submitting;
+  const canSubmit =
+    name.trim() && email.trim() && email.includes("@") && !submitting;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -23,12 +24,14 @@ export function WelcomeModal({ isOpen, onComplete }: WelcomeModalProps) {
 
     setSubmitting(true);
     try {
-      // Send to server to subscribe to Substack
-      await fetch("/api/register", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: name.trim(), email: email.trim() }),
-      });
+      // Only subscribe to Substack if user opted in
+      if (newsletter) {
+        await fetch("/api/register", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name: name.trim(), email: email.trim() }),
+        });
+      }
     } catch {
       // Don't block registration if Substack fails
     }
@@ -77,16 +80,22 @@ export function WelcomeModal({ isOpen, onComplete }: WelcomeModalProps) {
             />
           </div>
 
-          <div className="flex items-start gap-3 pt-1">
+          {/* Privacy disclosure — not a checkbox, just info */}
+          <p className="text-xs text-zinc-500 leading-relaxed">
+            This is a free, non-commercial project. Your API keys are stored
+            locally in your browser and never saved on our servers.
+          </p>
+
+          {/* Newsletter opt-in — separate, optional, unchecked by default */}
+          <div className="flex items-start gap-3">
             <input
               type="checkbox"
-              checked={agreed}
-              onChange={(e) => setAgreed(e.target.checked)}
-              className="mt-1 w-4 h-4 rounded border-zinc-600 bg-zinc-800 text-violet-500 focus:ring-violet-500 focus:ring-offset-0"
+              checked={newsletter}
+              onChange={(e) => setNewsletter(e.target.checked)}
+              className="mt-0.5 w-4 h-4 rounded border-zinc-600 bg-zinc-800 text-violet-500 focus:ring-violet-500 focus:ring-offset-0"
             />
             <p className="text-xs text-zinc-400 leading-relaxed">
-              This is a free, non-commercial project built for fun. By signing
-              up, you agree that your email will be added to the{" "}
+              Also subscribe me to the{" "}
               <a
                 href="https://angelinayang.substack.com"
                 target="_blank"
@@ -94,9 +103,8 @@ export function WelcomeModal({ isOpen, onComplete }: WelcomeModalProps) {
                 className="text-violet-400 hover:text-violet-300"
               >
                 TwoSetAI newsletter
-              </a>
-              . You can unsubscribe anytime. Your API keys are stored locally in
-              your browser and never saved on our servers.
+              </a>{" "}
+              (optional)
             </p>
           </div>
 
