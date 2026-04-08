@@ -21,51 +21,37 @@ export function SettingsModal({
   const [form, setForm] = useState<ApiKeys>(keys);
   const [vipPassword, setVipPassword] = useState("");
   const [vipError, setVipError] = useState("");
-  const [vipChecking, setVipChecking] = useState(false);
-  const [validating, setValidating] = useState(false);
-  const [validation, setValidation] = useState<{
-    claude?: boolean;
-    elevenLabs?: boolean;
-    errors?: Record<string, string>;
-  }>({});
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState("");
 
   useEffect(() => {
     setForm(keys);
-    setValidation({});
     setVipPassword("");
     setVipError("");
+    setSaveError("");
   }, [keys, isOpen]);
 
   if (!isOpen) return null;
 
-  const handleVipCheck = async () => {
-    if (!vipPassword.trim()) return;
-    setVipChecking(true);
-    setVipError("");
-    try {
-      const res = await fetch("/api/verify-password", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password: vipPassword.trim() }),
-      });
-      const data = await res.json();
-      if (data.valid) {
-        const updated = { ...form, vipMode: true, keysValidated: true };
-        onSave(updated);
-        onClose();
-      } else {
-        setVipError("Invalid password");
-      }
-    } catch {
-      setVipError("Verification failed");
-    }
-    setVipChecking(false);
-  };
+  const handleSave = async () => {
+    setSaving(true);
+    setSaveError("");
 
-  const handleValidateKeys = async () => {
-    if (!form.claudeApiKey || !form.elevenLabsApiKey) return;
-    setValidating(true);
-    setValidation({});
+    // If already VIP or keys already validated, just save
+    if (form.vipMode || form.keysValidated) {
+      onSave(form);
+      setSaving(false);
+      onClose();
+      return;
+    }
+
+    // Validate keys before saving
+    if (!form.claudeApiKey || !form.elevenLabsApiKey) {
+      setSaveError("Please enter both API keys to continue.");
+      setSaving(false);
+      return;
+    }
+
     try {
       const res = await fetch("/api/validate-keys", {
         method: "POST",
@@ -76,25 +62,46 @@ export function SettingsModal({
         }),
       });
       const data = await res.json();
-      setValidation(data);
+
       if (data.claude && data.elevenLabs) {
-        const updated = { ...form, keysValidated: true };
-        setForm(updated);
+        onSave({ ...form, keysValidated: true });
+        setSaving(false);
+        onClose();
+      } else {
+        const errors: string[] = [];
+        if (!data.claude) errors.push("Anthropic key is invalid");
+        if (!data.elevenLabs) errors.push("ElevenLabs key is invalid");
+        setSaveError(errors.join(". ") + ". Please check and try again.");
+        setSaving(false);
       }
     } catch {
-      setValidation({ errors: { general: "Validation failed" } });
+      setSaveError("Could not validate keys. Please try again.");
+      setSaving(false);
     }
-    setValidating(false);
   };
 
-  const handleSave = () => {
-    if (!form.keysValidated && !form.vipMode) return;
-    onSave(form);
-    onClose();
+  const handleVipCheck = async () => {
+    if (!vipPassword.trim()) return;
+    setSaving(true);
+    setVipError("");
+    try {
+      const res = await fetch("/api/verify-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: vipPassword.trim() }),
+      });
+      const data = await res.json();
+      if (data.valid) {
+        onSave({ ...form, vipMode: true, keysValidated: true });
+        onClose();
+      } else {
+        setVipError("Invalid password");
+      }
+    } catch {
+      setVipError("Verification failed");
+    }
+    setSaving(false);
   };
-
-  const canSave = form.vipMode || form.keysValidated;
-  const bothKeysEntered = Boolean(form.claudeApiKey && form.elevenLabsApiKey);
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center">
@@ -115,133 +122,111 @@ export function SettingsModal({
           </button>
         </div>
 
-        <div className="space-y-5">
-          {/* VIP Password */}
-          <div className="bg-zinc-800/50 rounded-xl p-4 border border-zinc-700/50">
-            <label className="block text-sm font-medium text-zinc-300 mb-1.5">
-              VIP Password
+        <div className="space-y-6">
+          {/* 1. Language — top priority, user-friendly */}
+          <div>
+            <label className="block text-sm font-medium text-white mb-1.5">
+              What language do you want your briefings in?
             </label>
-            <p className="text-xs text-zinc-500 mb-2">
-              Have a VIP password? Enter it to skip API key setup.
+            <select
+              value={form.outputLanguage}
+              onChange={(e) =>
+                setForm({ ...form, outputLanguage: e.target.value as OutputLanguage })
+              }
+              className="w-full px-3 py-2.5 bg-zinc-800 border border-zinc-700 rounded-lg text-white text-sm focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500"
+            >
+              {LANGUAGES.map((lang) => (
+                <option key={lang.code} value={lang.code}>
+                  {lang.flag} {lang.label}
+                </option>
+              ))}
+            </select>
+            <p className="mt-1 text-xs text-zinc-500">
+              Content in any language will be summarized and read aloud in your chosen language.
             </p>
-            <div className="flex gap-2">
-              <input
-                type="password"
-                value={vipPassword}
-                onChange={(e) => setVipPassword(e.target.value)}
-                placeholder="Enter password..."
-                className="flex-1 px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-zinc-500 text-sm focus:outline-none focus:border-violet-500"
-                onKeyDown={(e) => e.key === "Enter" && handleVipCheck()}
-              />
-              <button
-                onClick={handleVipCheck}
-                disabled={!vipPassword.trim() || vipChecking}
-                className="px-4 py-2 bg-violet-600 hover:bg-violet-500 disabled:bg-zinc-700 disabled:text-zinc-500 text-white text-sm font-medium rounded-lg transition-colors"
-              >
-                {vipChecking ? "..." : "Verify"}
-              </button>
-            </div>
-            {vipError && (
-              <p className="mt-2 text-xs text-red-400">{vipError}</p>
-            )}
-            {form.vipMode && (
-              <p className="mt-2 text-xs text-green-400">VIP access active</p>
-            )}
           </div>
 
+          {/* 2. API Keys section */}
           {!form.vipMode && (
-            <>
-              <div className="flex items-center gap-3">
-                <div className="flex-1 h-px bg-zinc-800" />
-                <span className="text-xs text-zinc-500">or use your own API keys</span>
-                <div className="flex-1 h-px bg-zinc-800" />
-              </div>
-
-              {/* Claude API Key */}
-              <div>
-                <label className="block text-sm font-medium text-zinc-300 mb-1.5">
-                  Anthropic API Key <span className="text-red-400">*</span>
-                </label>
-                <input
-                  type="password"
-                  value={form.claudeApiKey}
-                  onChange={(e) =>
-                    setForm({ ...form, claudeApiKey: e.target.value, keysValidated: false })
-                  }
-                  placeholder="sk-ant-..."
-                  className="w-full px-3 py-2.5 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-zinc-500 text-sm focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 font-mono"
-                />
-                <p className="mt-1 text-xs text-zinc-500">
-                  Required. Get yours at{" "}
-                  <a
-                    href="https://console.anthropic.com/settings/keys"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-violet-400 hover:text-violet-300"
-                  >
-                    console.anthropic.com
-                  </a>
+            <div>
+              <div className="mb-3">
+                <h3 className="text-sm font-medium text-white">Your API Keys</h3>
+                <p className="text-xs text-zinc-500 mt-1">
+                  Distill Cast uses AI to summarize and generate audio. You&apos;ll need
+                  two free API keys to get started — takes about 2 minutes.
                 </p>
-                {validation.claude === true && (
-                  <p className="mt-1 text-xs text-green-400">Anthropic key verified</p>
-                )}
-                {validation.errors?.claude && (
-                  <p className="mt-1 text-xs text-red-400">{validation.errors.claude}</p>
-                )}
               </div>
 
-              {/* ElevenLabs API Key */}
-              <div>
-                <label className="block text-sm font-medium text-zinc-300 mb-1.5">
-                  ElevenLabs API Key <span className="text-red-400">*</span>
-                </label>
-                <input
-                  type="password"
-                  value={form.elevenLabsApiKey}
-                  onChange={(e) =>
-                    setForm({ ...form, elevenLabsApiKey: e.target.value, keysValidated: false })
-                  }
-                  placeholder="sk_..."
-                  className="w-full px-3 py-2.5 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-zinc-500 text-sm focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 font-mono"
-                />
-                <p className="mt-1 text-xs text-zinc-500">
-                  Required. Get yours at{" "}
-                  <a
-                    href="https://elevenlabs.io/app/settings/api-keys"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-violet-400 hover:text-violet-300"
-                  >
-                    elevenlabs.io
-                  </a>
-                </p>
-                {validation.elevenLabs === true && (
-                  <p className="mt-1 text-xs text-green-400">ElevenLabs key verified</p>
-                )}
-                {validation.errors?.elevenLabs && (
-                  <p className="mt-1 text-xs text-red-400">{validation.errors.elevenLabs}</p>
-                )}
-              </div>
+              <div className="space-y-4">
+                {/* Anthropic key */}
+                <div>
+                  <label className="block text-sm text-zinc-300 mb-1.5">
+                    Anthropic API Key <span className="text-red-400">*</span>
+                  </label>
+                  <input
+                    type="password"
+                    value={form.claudeApiKey}
+                    onChange={(e) =>
+                      setForm({ ...form, claudeApiKey: e.target.value, keysValidated: false })
+                    }
+                    placeholder="sk-ant-..."
+                    className="w-full px-3 py-2.5 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-zinc-500 text-sm focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 font-mono"
+                  />
+                  <p className="mt-1 text-xs text-zinc-500">
+                    Powers the AI summarization.{" "}
+                    <a
+                      href="https://console.anthropic.com/settings/keys"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-violet-400 hover:text-violet-300"
+                    >
+                      Get your key here
+                    </a>
+                  </p>
+                </div>
 
-              {/* Validate button */}
-              <button
-                onClick={handleValidateKeys}
-                disabled={!bothKeysEntered || validating}
-                className="w-full py-2.5 bg-zinc-800 hover:bg-zinc-700 disabled:bg-zinc-800/50 disabled:text-zinc-600 text-white text-sm font-medium rounded-lg transition-colors border border-zinc-700"
-              >
-                {validating
-                  ? "Validating keys..."
-                  : form.keysValidated
-                    ? "Keys validated"
-                    : "Validate API Keys"}
-              </button>
-            </>
+                {/* ElevenLabs key */}
+                <div>
+                  <label className="block text-sm text-zinc-300 mb-1.5">
+                    ElevenLabs API Key <span className="text-red-400">*</span>
+                  </label>
+                  <input
+                    type="password"
+                    value={form.elevenLabsApiKey}
+                    onChange={(e) =>
+                      setForm({ ...form, elevenLabsApiKey: e.target.value, keysValidated: false })
+                    }
+                    placeholder="sk_..."
+                    className="w-full px-3 py-2.5 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-zinc-500 text-sm focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 font-mono"
+                  />
+                  <p className="mt-1 text-xs text-zinc-500">
+                    Powers the voice audio.{" "}
+                    <a
+                      href="https://elevenlabs.io/app/settings/api-keys"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-violet-400 hover:text-violet-300"
+                    >
+                      Get your key here
+                    </a>
+                  </p>
+                </div>
+              </div>
+            </div>
           )}
 
-          {/* Voice ID — optional */}
+          {form.vipMode && (
+            <div className="bg-green-950/30 rounded-lg p-3 border border-green-800/30">
+              <p className="text-xs text-green-400">
+                VIP access active — using built-in API keys.
+              </p>
+            </div>
+          )}
+
+          {/* 3. Voice ID — optional */}
           <div>
-            <label className="block text-sm font-medium text-zinc-300 mb-1.5">
-              ElevenLabs Voice ID <span className="text-zinc-500 font-normal">(optional)</span>
+            <label className="block text-sm text-zinc-300 mb-1.5">
+              Voice <span className="text-zinc-500 font-normal">(optional)</span>
             </label>
             <input
               type="text"
@@ -265,37 +250,49 @@ export function SettingsModal({
             </p>
           </div>
 
-          {/* Output Language */}
-          <div>
-            <label className="block text-sm font-medium text-zinc-300 mb-1.5">
-              Output Language
-            </label>
-            <select
-              value={form.outputLanguage}
-              onChange={(e) =>
-                setForm({ ...form, outputLanguage: e.target.value as OutputLanguage })
-              }
-              className="w-full px-3 py-2.5 bg-zinc-800 border border-zinc-700 rounded-lg text-white text-sm focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500"
-            >
-              {LANGUAGES.map((lang) => (
-                <option key={lang.code} value={lang.code}>
-                  {lang.flag} {lang.label}
-                </option>
-              ))}
-            </select>
-            <p className="mt-1 text-xs text-zinc-500">
-              Summaries will be generated in this language regardless of input language.
-            </p>
-          </div>
-
           {/* Privacy note */}
           <div className="bg-zinc-800/50 rounded-lg p-3 border border-zinc-700/50">
             <p className="text-xs text-zinc-400 leading-relaxed">
-              Your API keys are stored locally in your browser and only sent to
-              our server to make API calls on your behalf. We never store or log
-              your keys.
+              Your API keys are stored locally in your browser and only used to
+              make API calls on your behalf. We never store or log your keys.
             </p>
           </div>
+
+          {/* Save error */}
+          {saveError && (
+            <div className="bg-red-950/30 rounded-lg p-3 border border-red-800/30">
+              <p className="text-xs text-red-400">{saveError}</p>
+            </div>
+          )}
+
+          {/* 4. VIP password — at the bottom */}
+          {!form.vipMode && (
+            <div className="pt-2 border-t border-zinc-800">
+              <label className="block text-sm text-zinc-400 mb-1.5">
+                Have a VIP password?
+              </label>
+              <div className="flex gap-2">
+                <input
+                  type="password"
+                  value={vipPassword}
+                  onChange={(e) => setVipPassword(e.target.value)}
+                  placeholder="Enter password..."
+                  className="flex-1 px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-zinc-500 text-sm focus:outline-none focus:border-violet-500"
+                  onKeyDown={(e) => e.key === "Enter" && handleVipCheck()}
+                />
+                <button
+                  onClick={handleVipCheck}
+                  disabled={!vipPassword.trim() || saving}
+                  className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 disabled:bg-zinc-800/50 disabled:text-zinc-600 text-white text-sm rounded-lg transition-colors border border-zinc-700"
+                >
+                  {saving ? "..." : "Go"}
+                </button>
+              </div>
+              {vipError && (
+                <p className="mt-1 text-xs text-red-400">{vipError}</p>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Actions */}
@@ -303,11 +300,11 @@ export function SettingsModal({
           <button
             onClick={() => {
               onClear();
-              setValidation({});
+              setSaveError("");
             }}
             className="text-sm text-zinc-500 hover:text-red-400 transition-colors"
           >
-            Clear all
+            Reset
           </button>
           <div className="flex gap-3">
             <button
@@ -318,10 +315,10 @@ export function SettingsModal({
             </button>
             <button
               onClick={handleSave}
-              disabled={!canSave}
-              className="px-5 py-2 bg-violet-600 hover:bg-violet-500 disabled:bg-zinc-700 disabled:text-zinc-500 text-white text-sm font-medium rounded-lg transition-colors"
+              disabled={saving}
+              className="px-5 py-2 bg-violet-600 hover:bg-violet-500 disabled:bg-violet-600/50 text-white text-sm font-medium rounded-lg transition-colors"
             >
-              Save
+              {saving ? "Validating..." : "Save"}
             </button>
           </div>
         </div>
