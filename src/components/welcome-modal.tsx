@@ -42,7 +42,7 @@ export function WelcomeModal({ isOpen, onComplete }: WelcomeModalProps) {
       <div className="relative bg-zinc-900 border border-zinc-700 rounded-2xl w-full max-w-md mx-4 p-6">
         <div className="text-center mb-6">
           <h2 className="text-2xl font-bold text-white mb-2">
-            Welcome to Distill Cast
+            Welcome to TL;Listen
           </h2>
           <p className="text-zinc-400 text-sm">
             Turn articles and YouTube videos into audio briefings you can listen
