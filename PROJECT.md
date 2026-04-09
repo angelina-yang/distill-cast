@@ -50,7 +50,7 @@ There is **no traditional backend** — no database, no server, no user accounts
 
 | What | Where | How |
 |------|-------|-----|
-| API keys, language, theme preference | Browser localStorage | Never sent to server except as request headers for API calls |
+| API keys, language, theme, draft instructions | Browser localStorage | Never sent to server except as request headers for API calls |
 | User registration (name, email) | Browser localStorage | Also logged to Google Sheet on signup |
 | Audio files | Browser memory (Blob URLs) | Generated per session, not persisted |
 | Playlist state | React state (in-memory) | Lost on page refresh |
@@ -89,6 +89,7 @@ Audio player auto-plays, auto-advances through playlist
 | `/api/tts` | POST | Text → MP3 audio via ElevenLabs |
 | `/api/register` | POST | Subscribes user email to Substack (if opted in) |
 | `/api/verify-password` | POST | Validates VIP password for backdoor access |
+| `/api/draft-post` | POST | Summary → tweet or LinkedIn post draft via Claude |
 | `/api/validate-keys` | POST | Tests API keys with real API calls before saving |
 
 ### File Structure
@@ -99,13 +100,14 @@ distill-cast/
 │   ├── app/
 │   │   ├── layout.tsx              # Root layout, PWA registration
 │   │   ├── page.tsx                # Main page (single-page app)
-│   │   └── api/                    # 6 API routes (see above)
+│   │   └── api/                    # 7 API routes (see above)
 │   ├── components/
 │   │   ├── header.tsx              # App header with logo, theme toggle, play button, settings
 │   │   ├── url-input.tsx           # Link input with deduplication
 │   │   ├── sidebar-playlist.tsx    # Left sidebar: active + done items
 │   │   ├── welcome-modal.tsx       # First-time user registration
 │   │   ├── settings-modal.tsx      # API keys, language, VIP password
+│   │   ├── draft-modal.tsx         # Tweet/LinkedIn post drafting with instructions
 │   │   ├── sw-register.tsx         # Service worker registration
 │   │   └── player/
 │   │       ├── audio-player.tsx    # Bottom bar: play/pause, skip, progress
@@ -115,14 +117,15 @@ distill-cast/
 │   │   ├── use-audio-player.ts     # Audio playback, auto-advance, done tracking
 │   │   ├── use-api-keys.ts         # API key + language storage (localStorage)
 │   │   ├── use-user.ts             # User registration state (localStorage)
-│   │   └── use-theme.ts            # Dark/light theme toggle (localStorage)
+│   │   ├── use-theme.ts            # Dark/light theme toggle (localStorage)
+│   │   └── use-draft-instructions.ts # Persistent tweet/LinkedIn style prefs
 │   ├── lib/
 │   │   ├── extract-youtube.ts      # YouTube transcript fetcher
 │   │   ├── extract-article.ts      # Article content extractor
 │   │   ├── url-utils.ts            # URL parsing and YouTube detection
 │   │   ├── summarize.ts            # Claude API wrapper
 │   │   ├── tts.ts                  # ElevenLabs API wrapper with voice switching
-│   │   └── prompts.ts              # Claude prompt templates (multilingual)
+│   │   └── prompts.ts              # Claude prompt templates (summarize + social drafts)
 │   └── types/
 │       └── index.ts                # Shared TypeScript types
 ├── public/
@@ -185,6 +188,45 @@ distill-cast/
 | **Live sentence tracking** | While audio plays, the summary text highlights the estimated current sentence. Already-read sentences dim. Gives you a visual sense of where you are in the briefing if you're reading along on your computer. |
 | **Theme-adaptive colors** | Dark mode uses a yellow highlight (high contrast on black). Light mode uses a purple highlight (high contrast on white). The highlight color was specifically chosen for readability in each mode. |
 | **Proportional estimation** | Since we don't have word-level timestamps from ElevenLabs, highlighting is estimated by mapping playback progress to sentence position by character count. Not perfectly synced, but surprisingly useful. |
+
+### Social Post Drafting
+
+| Feature | Description |
+|---------|-------------|
+| **One-click tweet drafting** | After listening to (or reading) a summary, click the X (Twitter) icon button below the summary card. Claude generates a tweet-length post (max 280 characters) based on the summary content. The draft appears in a modal with a character counter, copy button, and regenerate button. |
+| **One-click LinkedIn drafting** | Same flow, different format. Click the LinkedIn icon button and Claude generates a professional LinkedIn post (100-300 words) with a hook opening, short paragraphs, engagement-driving question at the end, and 3-5 hashtags. |
+| **Persistent style instructions** | Each platform (tweet and LinkedIn) has its own style instructions field. Users type their preferences once (e.g., "Casual tone, always tag @TwoSetAI, end with a hot take" for tweets, or "Professional but warm, mention my company, use data points" for LinkedIn). Instructions are saved in localStorage and automatically applied to every future draft. No need to re-type preferences for each post. |
+| **Collapsible instructions editor** | The instructions panel is collapsible to keep the modal clean. When collapsed, it shows a preview of the saved instructions ("Using: 'Casual tone, tag @TwoSetAI...'"). Click to expand and edit. A "Save" button persists changes. |
+| **Regenerate** | Not happy with the draft? Click "Regenerate" to get a fresh version. If you tweaked the instructions, the new draft uses the updated instructions. |
+| **Character count** | For tweets, the modal shows a live character count (e.g., "247/280 characters"). The count turns red if the draft exceeds 280 characters. |
+| **Platform-specific prompts** | Claude receives different system prompts per platform. Tweet prompts enforce the 280-character limit, punchy tone, and minimal hashtags. LinkedIn prompts encourage hook-driven openings, short paragraphs with line breaks, and a closing CTA or question. User style instructions are injected into the system prompt so they take priority over defaults. |
+| **Same API key path** | Uses the same Claude API key (BYOK or VIP) as summarization. No new keys needed. The draft call is lightweight (summary text is already short), so it costs a fraction of a cent per generation. |
+| **Standalone module** | The entire feature is self-contained across 3 new files (`draft-modal.tsx`, `use-draft-instructions.ts`, `/api/draft-post/route.ts`) plus prompt additions. It can be removed without affecting any other feature — true Lego-piece architecture. |
+
+#### How it works (technical flow)
+
+```
+User clicks [Tweet] or [LinkedIn] button below summary
+    |
+    v
+DraftModal opens → sends POST to /api/draft-post with:
+  - platform ("tweet" or "linkedin")
+  - summary text (already generated)
+  - title of the article/video
+  - user's style instructions (from localStorage, if any)
+    |
+    v
+/api/draft-post → builds platform-specific Claude prompt:
+  - System prompt: platform rules + user instructions
+  - User message: "Here is the summary of [title]... Write a [tweet/LinkedIn post]"
+  - Model: Claude Sonnet, max_tokens: 1024
+    |
+    v
+Claude generates draft → returned to modal
+    |
+    v
+User reviews → Copy to clipboard / Regenerate / Edit instructions
+```
 
 ### Theming & Branding
 
