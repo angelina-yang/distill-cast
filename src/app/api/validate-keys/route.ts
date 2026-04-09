@@ -54,7 +54,7 @@ export async function POST(req: NextRequest) {
         // Check for missing_permissions in the error body
         const body = (err as { body?: { detail?: { status?: string; message?: string } } }).body;
         if (status === 401 && body?.detail?.status === "missing_permissions") {
-          results.errors.elevenLabs = "Your API key is missing required permissions. Go to elevenlabs.io → Profile → API Keys, delete this key, and create a new one with all permissions enabled.";
+          results.errors.elevenLabs = "Your API key is missing required permissions. Go to elevenlabs.io → Profile → API Keys, delete this key, and create a new one with at least \"Text to Speech\" and \"Voices: Read\" permissions enabled.";
         } else if (status === 401) {
           results.errors.elevenLabs = "Invalid API key. Go to elevenlabs.io → Profile → API Keys and copy your key.";
         } else if (status === 403) {
