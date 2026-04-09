@@ -22,6 +22,7 @@ export async function POST(req: NextRequest) {
       },
     });
   } catch (err) {
+    console.error("[TTS] Error:", err);
     const message = err instanceof Error ? err.message : "TTS failed";
     return NextResponse.json({ error: message }, { status: 500 });
   }
