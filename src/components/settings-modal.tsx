@@ -67,9 +67,9 @@ export function SettingsModal({
         onClose();
       } else {
         const errors: string[] = [];
-        if (!data.claude) errors.push("Anthropic key is invalid");
-        if (!data.elevenLabs) errors.push("ElevenLabs key is invalid");
-        setSaveError(errors.join(". ") + ". Please check and try again.");
+        if (!data.claude) errors.push(data.errors?.claude || "Anthropic key is invalid");
+        if (!data.elevenLabs) errors.push(data.errors?.elevenLabs || "ElevenLabs key is invalid");
+        setSaveError(errors.join("\n\n"));
         setSaving(false);
       }
     } catch {
@@ -283,7 +283,7 @@ export function SettingsModal({
           {/* Save error */}
           {saveError && (
             <div className="bg-red-950/30 rounded-lg p-3 border border-red-800/30">
-              <p className="text-xs text-red-400">{saveError}</p>
+              <p className="text-xs text-red-400 whitespace-pre-wrap">{saveError}</p>
             </div>
           )}
 
