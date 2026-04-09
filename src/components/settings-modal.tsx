@@ -213,7 +213,7 @@ export function SettingsModal({
                     style={inputStyle}
                   />
                   <p className="mt-1 text-xs" style={{ color: "var(--text-muted)" }}>
-                    Powers the voice audio.{" "}
+                    Powers the voice audio. Make sure all permissions are enabled when creating the key.{" "}
                     <a
                       href="https://elevenlabs.io/app/settings/api-keys"
                       target="_blank"
