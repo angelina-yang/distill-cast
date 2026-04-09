@@ -166,7 +166,7 @@ export function SettingsModal({
                 <h3 className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>Your API Keys</h3>
                 <p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>
                   TL;Listen uses AI to summarize and generate audio. You&apos;ll need
-                  two free API keys to get started.
+                  two API keys to get started.
                 </p>
               </div>
 
@@ -186,7 +186,7 @@ export function SettingsModal({
                     style={inputStyle}
                   />
                   <p className="mt-1 text-xs" style={{ color: "var(--text-muted)" }}>
-                    Powers the AI summarization.{" "}
+                    Powers the AI summarization. Requires a funded account (add billing at console.anthropic.com first).{" "}
                     <a
                       href="https://console.anthropic.com/settings/keys"
                       target="_blank"
@@ -213,7 +213,7 @@ export function SettingsModal({
                     style={inputStyle}
                   />
                   <p className="mt-1 text-xs" style={{ color: "var(--text-muted)" }}>
-                    Powers the voice audio. Make sure all permissions are enabled when creating the key.{" "}
+                    Powers the voice audio. When creating your key, enable at least &quot;Text to Speech&quot; and &quot;Voices&quot; permissions.{" "}
                     <a
                       href="https://elevenlabs.io/app/settings/api-keys"
                       target="_blank"
