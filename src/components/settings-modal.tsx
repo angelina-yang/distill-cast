@@ -273,10 +273,8 @@ export function SettingsModal({
             }}
           >
             <p className="text-xs leading-relaxed" style={{ color: "var(--text-muted)" }}>
-              Your API keys are stored locally in your browser. When you generate
-              a briefing, your keys are sent to our server to make API calls on
-              your behalf -- they pass through our server but are never stored,
-              logged, or shared.
+              Your API keys are stored safely in your browser. We never save,
+              log, or share them with anyone.
             </p>
           </div>
 
