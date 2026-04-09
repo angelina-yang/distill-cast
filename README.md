@@ -21,11 +21,11 @@ I built this for myself, and I use it every day.
 ## How to use it
 
 1. Go to [tllisten.twosetai.com](https://tllisten.twosetai.com)
-2. Add your API keys (Claude for summarization, ElevenLabs for voice)
+2. Add your API keys (Claude and ElevenLabs)
 3. Paste one or more links — articles or YouTube videos
 4. Hit play. Listen to your briefing while you do other things.
 
-You can also draft tweet or LinkedIn posts from any summary with one click, and install it as an app on your phone (it's a PWA).
+You can also draft tweet or LinkedIn posts from any summary with one click.
 
 ## Tech stack
 
@@ -33,9 +33,8 @@ You can also draft tweet or LinkedIn posts from any summary with one click, and 
 - **Claude** (Anthropic) for summarization and post drafting
 - **ElevenLabs** for text-to-speech
 - **Tailwind CSS** for styling
-- Deployed on **Vercel**
 
-No database. No user accounts. Everything runs in your browser and through serverless API routes. Your API keys stay in localStorage and are only sent as request headers — never stored server-side.
+Your API keys are stored locally in your browser and are never saved on our servers.
 
 ## Links
 
