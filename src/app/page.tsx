@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 import { Header } from "@/components/header";
 import { UrlInput } from "@/components/url-input";
 import { SidebarPlaylist } from "@/components/sidebar-playlist";
@@ -63,6 +63,7 @@ export default function Home() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [playlistOpen, setPlaylistOpen] = useState(false);
   const [sidebarVisible, setSidebarVisible] = useState(true);
+  const [importBanner, setImportBanner] = useState<{ count: number; source: string } | null>(null);
 
   const handleRegistration = (name: string, email: string) => {
     register(name, email);
@@ -70,6 +71,50 @@ export default function Home() {
       setSettingsOpen(true);
     }
   };
+
+  // Accept ?urls=... query param from other Lab tools (e.g., Daily Brew)
+  // Auto-add URLs to the playlist when keys are ready
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (!hasKeys || !loaded || !userLoaded) return;
+
+    const params = new URLSearchParams(window.location.search);
+    const urlsParam = params.get("urls");
+    if (!urlsParam) return;
+
+    // Validate each URL: must parse, must use http/https, max 50 URLs
+    const urlList = urlsParam
+      .split(",")
+      .map((u) => u.trim())
+      .filter((u) => u.length > 0 && u.length < 2048)
+      .filter((u) => {
+        try {
+          const parsed = new URL(u);
+          return parsed.protocol === "http:" || parsed.protocol === "https:";
+        } catch {
+          return false;
+        }
+      })
+      .slice(0, 50);
+
+    if (urlList.length > 0) {
+      addUrls(urlList);
+
+      // Show a banner acknowledging where these URLs came from
+      const sourceParam = (params.get("source") || "").trim().toLowerCase();
+      const knownSources: Record<string, string> = {
+        "morning-brew": "Morning Brew",
+        "daily-brew": "Daily Brew",
+        "social-claw": "Social Claw",
+      };
+      const sourceLabel = knownSources[sourceParam] || "another Lab tool";
+      setImportBanner({ count: urlList.length, source: sourceLabel });
+
+      // Clean up URL so we don't re-add on refresh
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasKeys, loaded, userLoaded]);
 
   const hasItems = items.length > 0;
   const activeItems = items.filter((i) => !i.done);
@@ -158,6 +203,37 @@ export default function Home() {
           )}
 
           <main className="flex-1 overflow-y-auto p-4 md:p-6">
+            {importBanner && (
+              <div className="max-w-2xl mx-auto mb-4">
+                <div
+                  className="flex items-center justify-between gap-3 rounded-lg px-4 py-3"
+                  style={{
+                    background: "var(--bg-card)",
+                    border: "1px solid var(--accent)",
+                  }}
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="text-lg">📥</span>
+                    <p className="text-sm" style={{ color: "var(--text-primary)" }}>
+                      Added <strong>{importBanner.count}</strong>{" "}
+                      {importBanner.count === 1 ? "article" : "articles"} from{" "}
+                      <strong>{importBanner.source}</strong>
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setImportBanner(null)}
+                    className="transition-colors"
+                    style={{ color: "var(--text-muted)" }}
+                    aria-label="Dismiss"
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M18 6L6 18M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            )}
+
             {hasKeys && (
               <div className="max-w-2xl mx-auto mb-6">
                 <UrlInput
