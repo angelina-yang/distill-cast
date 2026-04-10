@@ -130,8 +130,8 @@ export function WelcomeModal({ isOpen, onComplete }: WelcomeModalProps) {
           </div>
 
           <p className="text-xs leading-relaxed" style={{ color: "var(--text-faint)" }}>
-            Your API keys are stored safely in your browser. We never save,
-            log, or share them with anyone.
+            <span className="font-medium" style={{ color: "var(--text-secondary)" }}>🔑 Your keys, your data.</span>{" "}
+            Everything stays with you, never on our server.
           </p>
 
           <button
