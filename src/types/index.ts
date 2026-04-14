@@ -8,6 +8,8 @@ export type ItemStatus =
   | "ready"
   | "error";
 
+export type ReadMode = "summary" | "full";
+
 export interface PlaylistItem {
   id: string;
   url: string;
@@ -15,6 +17,7 @@ export interface PlaylistItem {
   title: string;
   content: string;
   summary: string;
+  readMode: ReadMode;
   introAudioUrl: string | null;
   audioUrl: string | null;
   status: ItemStatus;

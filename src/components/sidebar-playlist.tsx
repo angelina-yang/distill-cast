@@ -6,6 +6,7 @@ import { PlaylistItem } from "@/types";
 interface SidebarPlaylistProps {
   items: PlaylistItem[];
   currentIndex: number;
+  selectedIndex?: number;
   isPlaying: boolean;
   onItemClick: (index: number) => void;
   onToggleDone: (id: string) => void;
@@ -18,6 +19,7 @@ interface SidebarPlaylistProps {
 export function SidebarPlaylist({
   items,
   currentIndex,
+  selectedIndex = -1,
   isPlaying,
   onItemClick,
   onToggleDone,
@@ -82,7 +84,9 @@ export function SidebarPlaylist({
         {activeItems.map((item, listIdx) => {
           const globalIndex = items.indexOf(item);
           const isCurrent = globalIndex === currentIndex;
+          const isSelected = globalIndex === selectedIndex && !isCurrent;
           const isReady = item.status === "ready";
+          const isClickable = isReady || (item.status === "error" && !!item.summary);
           const isSpinning =
             item.status === "extracting" ||
             item.status === "summarizing" ||
@@ -94,12 +98,12 @@ export function SidebarPlaylist({
               className="group relative transition-colors"
               style={{
                 borderBottom: "1px solid color-mix(in srgb, var(--border-primary) 50%, transparent)",
-                background: isCurrent ? "var(--bg-active)" : undefined,
-                borderLeft: isCurrent ? "3px solid var(--accent)" : "3px solid transparent",
-                opacity: isReady || isCurrent ? 1 : 0.5,
+                background: isCurrent ? "var(--bg-active)" : isSelected ? "var(--bg-hover)" : undefined,
+                borderLeft: (isCurrent || isSelected) ? "3px solid var(--accent)" : "3px solid transparent",
+                opacity: isClickable || isCurrent ? 1 : 0.5,
               }}
               onMouseEnter={(e) => {
-                if (!isCurrent && isReady) e.currentTarget.style.background = "var(--bg-hover)";
+                if (!isCurrent && isClickable) e.currentTarget.style.background = "var(--bg-hover)";
               }}
               onMouseLeave={(e) => {
                 if (!isCurrent) e.currentTarget.style.background = "";
@@ -107,12 +111,12 @@ export function SidebarPlaylist({
             >
               <button
                 onClick={() => {
-                  if (isReady) {
+                  if (isClickable) {
                     onItemClick(globalIndex);
                     onMobileClose();
                   }
                 }}
-                disabled={!isReady}
+                disabled={!isClickable}
                 className="w-full text-left px-4 py-3 flex items-start gap-3 cursor-pointer disabled:cursor-default"
               >
                 {/* Status icon */}

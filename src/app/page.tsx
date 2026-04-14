@@ -64,6 +64,7 @@ export default function Home() {
   const [playlistOpen, setPlaylistOpen] = useState(false);
   const [sidebarVisible, setSidebarVisible] = useState(true);
   const [importBanner, setImportBanner] = useState<{ count: number; source: string } | null>(null);
+  const [selectedIndex, setSelectedIndex] = useState(-1);
   const autoPlayOnReadyRef = useRef(false);
 
   const handleRegistration = (name: string, email: string) => {
@@ -137,8 +138,9 @@ export default function Home() {
   const hasReadyItems = activeItems.some((i) => i.status === "ready");
   const showPlayButton = hasReadyItems && !isPlaying && currentIndex < 0;
 
+  const displayIdx = currentIndex >= 0 ? currentIndex : selectedIndex;
   const displayItem =
-    currentIndex >= 0 && items[currentIndex] ? items[currentIndex] : null;
+    displayIdx >= 0 && items[displayIdx] ? items[displayIdx] : null;
 
   const displayText = displayItem?.summary || "";
   const sentences = useMemo(() => {
@@ -209,8 +211,17 @@ export default function Home() {
             <SidebarPlaylist
               items={items}
               currentIndex={currentIndex}
+              selectedIndex={selectedIndex}
               isPlaying={isPlaying}
-              onItemClick={playItem}
+              onItemClick={(idx) => {
+                const item = items[idx];
+                if (item?.status === "ready") {
+                  playItem(idx);
+                  setSelectedIndex(-1);
+                } else if (item?.summary) {
+                  setSelectedIndex(idx);
+                }
+              }}
               onToggleDone={toggleDone}
               onRemoveItem={removeItem}
               mobileOpen={playlistOpen}
@@ -282,9 +293,13 @@ export default function Home() {
                   >
                     {currentIndex >= 0 && isPlaying
                       ? "Now Playing"
-                      : finished
+                      : currentIndex >= 0 && finished
                         ? "Finished"
-                        : "Paused"}
+                        : currentIndex >= 0
+                          ? "Paused"
+                          : displayItem?.status === "error"
+                            ? "Audio Failed"
+                            : "Preview"}
                   </span>
                   <h2 className="text-xl font-bold mt-1">
                     {displayItem.title}
