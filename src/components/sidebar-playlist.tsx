@@ -164,7 +164,7 @@ export function SidebarPlaylist({
                         - {item.status === "extracting"
                           ? "Extracting"
                           : item.status === "summarizing"
-                            ? "Summarizing"
+                            ? (item.readMode === "full" ? "Preparing" : "Summarizing")
                             : "Generating audio"}
                       </span>
                     )}
