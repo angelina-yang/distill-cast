@@ -29,7 +29,7 @@ function splitSentences(text: string): string[] {
 export default function Home() {
   const { isRegistered, loaded: userLoaded, register } = useUser();
   const { keys, hasKeys, loaded, saveKeys, clearKeys } = useApiKeys();
-  const { items, isProcessing, addUrls, toggleDone, removeItem, clearAll } =
+  const { items, isProcessing, addUrls, toggleDone, removeItem, reprocessItem, clearAll } =
     useProcessing(keys);
   const { isDark, toggleTheme, loaded: themeLoaded } = useTheme();
   const { instructions, setInstructions } = useDraftInstructions();
@@ -293,16 +293,40 @@ export default function Home() {
                     {displayItem.type === "youtube" ? "YouTube" : "Article"} &mdash;{" "}
                     {displayItem.url}
                   </p>
-                  <span
-                    className="inline-block mt-1.5 text-xs px-2 py-0.5 rounded-full font-medium"
-                    style={{
-                      background: displayItem.readMode === "full" ? "var(--accent)" : "var(--bg-card)",
-                      color: displayItem.readMode === "full" ? "#fff" : "var(--text-muted)",
-                      border: displayItem.readMode === "full" ? "none" : "1px solid var(--border-primary)",
-                    }}
-                  >
-                    {displayItem.readMode === "full" ? "Full Read" : "Briefing"}
-                  </span>
+                  {displayItem.type === "article" ? (
+                    <button
+                      onClick={() =>
+                        reprocessItem(
+                          displayItem.id,
+                          displayItem.readMode === "full" ? "summary" : "full"
+                        )
+                      }
+                      disabled={displayItem.status !== "ready" && displayItem.status !== "error"}
+                      className="inline-flex items-center gap-1.5 mt-1.5 text-xs px-2.5 py-1 rounded-full font-medium transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                      style={{
+                        background: displayItem.readMode === "full" ? "var(--accent)" : "var(--bg-card)",
+                        color: displayItem.readMode === "full" ? "#fff" : "var(--text-muted)",
+                        border: displayItem.readMode === "full" ? "none" : "1px solid var(--border-primary)",
+                      }}
+                      title={`Switch to ${displayItem.readMode === "full" ? "summary" : "full read"}`}
+                    >
+                      {displayItem.readMode === "full" ? "Full Read" : "Summary"}
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M7 16V4m0 0L3 8m4-4l4 4M17 8v12m0 0l4-4m-4 4l-4-4" />
+                      </svg>
+                    </button>
+                  ) : (
+                    <span
+                      className="inline-block mt-1.5 text-xs px-2 py-0.5 rounded-full font-medium"
+                      style={{
+                        background: "var(--bg-card)",
+                        color: "var(--text-muted)",
+                        border: "1px solid var(--border-primary)",
+                      }}
+                    >
+                      Summary
+                    </span>
+                  )}
                 </div>
                 <div
                   className="rounded-xl p-4 md:p-6"

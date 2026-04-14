@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { PlaylistItem, ItemStatus } from "@/types";
+import { PlaylistItem, ItemStatus, ReadMode } from "@/types";
+import { isYouTubeUrl } from "@/lib/url-utils";
 import { ApiKeys } from "./use-api-keys";
 
 function generateId() {
@@ -40,19 +41,26 @@ async function processItem(
     const { title, content, type } = await extractRes.json();
     updateItem(item.id, { title, content, type });
 
-    // Step 2: Summarize
-    updateItem(item.id, { status: "summarizing" });
-    const sumRes = await fetch("/api/summarize", {
-      method: "POST",
-      headers,
-      body: JSON.stringify({ title, content, type, language: keys.outputLanguage }),
-    });
-    if (!sumRes.ok) {
-      const err = await sumRes.json();
-      throw new Error(err.error || "Summarization failed");
+    // Step 2: Summarize (skip in "full" mode — read the article as-is)
+    let ttsText: string;
+    if (item.readMode === "full") {
+      updateItem(item.id, { status: "summarizing", summary: content });
+      ttsText = content;
+    } else {
+      updateItem(item.id, { status: "summarizing" });
+      const sumRes = await fetch("/api/summarize", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ title, content, type, language: keys.outputLanguage }),
+      });
+      if (!sumRes.ok) {
+        const err = await sumRes.json();
+        throw new Error(err.error || "Summarization failed");
+      }
+      const { summary } = await sumRes.json();
+      updateItem(item.id, { summary });
+      ttsText = summary;
     }
-    const { summary } = await sumRes.json();
-    updateItem(item.id, { summary });
 
     // Step 3: Generate TTS for intro
     updateItem(item.id, { status: "generating-audio" });
@@ -67,11 +75,11 @@ async function processItem(
       introAudioUrl = URL.createObjectURL(introBlob);
     }
 
-    // Step 4: Generate TTS for summary
+    // Step 4: Generate TTS for content
     const ttsRes = await fetch("/api/tts", {
       method: "POST",
       headers,
-      body: JSON.stringify({ text: summary, language: keys.outputLanguage }),
+      body: JSON.stringify({ text: ttsText, language: keys.outputLanguage }),
     });
     if (!ttsRes.ok) {
       throw new Error("TTS generation failed");
@@ -105,7 +113,7 @@ export function useProcessing(keys: ApiKeys) {
 
   // Append new URLs to existing playlist
   const addUrls = useCallback(
-    (urls: string[]) => {
+    (urls: string[], readMode: ReadMode = "summary") => {
       const newItems: PlaylistItem[] = urls.map((url) => ({
         id: generateId(),
         url,
@@ -113,6 +121,7 @@ export function useProcessing(keys: ApiKeys) {
         title: url,
         content: "",
         summary: "",
+        readMode: isYouTubeUrl(url) ? "summary" as ReadMode : readMode,
         introAudioUrl: null,
         audioUrl: null,
         status: "queued" as ItemStatus,
@@ -166,6 +175,45 @@ export function useProcessing(keys: ApiKeys) {
     });
   }, []);
 
+  // Re-process an article in a different read mode (full ↔ summary)
+  const reprocessItem = useCallback(
+    (id: string, newMode: ReadMode) => {
+      setItems((prev) => {
+        const item = prev.find((i) => i.id === id);
+        if (!item || item.type === "youtube") return prev;
+
+        // Revoke old audio
+        if (item.audioUrl) URL.revokeObjectURL(item.audioUrl);
+        if (item.introAudioUrl) URL.revokeObjectURL(item.introAudioUrl);
+
+        const updated = prev.map((i) =>
+          i.id === id
+            ? {
+                ...i,
+                readMode: newMode,
+                audioUrl: null,
+                introAudioUrl: null,
+                summary: "",
+                status: "queued" as ItemStatus,
+                error: undefined,
+                done: false,
+              }
+            : i
+        );
+
+        // Re-process the item (content is already extracted)
+        const updatedItem = updated.find((i) => i.id === id)!;
+        setIsProcessing(true);
+        processItem(updatedItem, keys, updateItem).then(() => {
+          setIsProcessing(false);
+        });
+
+        return updated;
+      });
+    },
+    [keys, updateItem]
+  );
+
   // Clear all items
   const clearAll = useCallback(() => {
     items.forEach((item) => {
@@ -176,5 +224,5 @@ export function useProcessing(keys: ApiKeys) {
     setIsProcessing(false);
   }, [items]);
 
-  return { items, isProcessing, addUrls, toggleDone, removeItem, clearAll };
+  return { items, isProcessing, addUrls, toggleDone, removeItem, reprocessItem, clearAll };
 }
