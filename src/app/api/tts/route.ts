@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { textToSpeech } from "@/lib/tts";
 
-export const maxDuration = 60;
+export const maxDuration = 300; // Full-read articles may need multiple TTS chunks
 
 export async function POST(req: NextRequest) {
   try {

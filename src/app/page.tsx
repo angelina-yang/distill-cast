@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useMemo, useEffect } from "react";
+import { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import { Header } from "@/components/header";
 import { UrlInput } from "@/components/url-input";
 import { SidebarPlaylist } from "@/components/sidebar-playlist";
@@ -64,6 +64,7 @@ export default function Home() {
   const [playlistOpen, setPlaylistOpen] = useState(false);
   const [sidebarVisible, setSidebarVisible] = useState(true);
   const [importBanner, setImportBanner] = useState<{ count: number; source: string } | null>(null);
+  const autoPlayOnReadyRef = useRef(false);
 
   const handleRegistration = (name: string, email: string) => {
     register(name, email);
@@ -98,7 +99,9 @@ export default function Home() {
       .slice(0, 50);
 
     if (urlList.length > 0) {
-      addUrls(urlList);
+      const modeParam = params.get("mode");
+      const readMode = modeParam === "full" ? "full" as const : "summary" as const;
+      addUrls(urlList, readMode);
 
       // Show a banner acknowledging where these URLs came from
       const sourceParam = (params.get("source") || "").trim().toLowerCase();
@@ -106,15 +109,28 @@ export default function Home() {
         "morning-brew": "Morning Brew",
         "daily-brew": "Daily Brew",
         "social-claw": "Social Claw",
+        "twosetai": "TwoSetAI",
       };
       const sourceLabel = knownSources[sourceParam] || "another Lab tool";
       setImportBanner({ count: urlList.length, source: sourceLabel });
+      autoPlayOnReadyRef.current = true;
 
       // Clean up URL so we don't re-add on refresh
       window.history.replaceState({}, "", window.location.pathname);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hasKeys, loaded, userLoaded]);
+
+  // Auto-play when the first item becomes ready after URL import
+  useEffect(() => {
+    if (!autoPlayOnReadyRef.current) return;
+    const firstReady = items.find((i) => i.status === "ready");
+    if (firstReady && !isPlaying && currentIndex < 0) {
+      const idx = items.indexOf(firstReady);
+      playItem(idx);
+      autoPlayOnReadyRef.current = false;
+    }
+  }, [items, isPlaying, currentIndex, playItem]);
 
   const hasItems = items.length > 0;
   const activeItems = items.filter((i) => !i.done);
@@ -124,10 +140,11 @@ export default function Home() {
   const displayItem =
     currentIndex >= 0 && items[currentIndex] ? items[currentIndex] : null;
 
+  const displayText = displayItem?.summary || "";
   const sentences = useMemo(() => {
-    if (!displayItem?.summary) return [];
-    return splitSentences(displayItem.summary);
-  }, [displayItem?.summary]);
+    if (!displayText) return [];
+    return splitSentences(displayText);
+  }, [displayText]);
 
   const activeSentenceIndex = useMemo(() => {
     if (!isPlaying || !duration || sentences.length === 0) return -1;
@@ -239,6 +256,7 @@ export default function Home() {
                 <UrlInput
                   onSubmit={addUrls}
                   existingUrls={items.map((i) => i.url)}
+                  defaultReadMode="summary"
                 />
               </div>
             )}
@@ -275,6 +293,16 @@ export default function Home() {
                     {displayItem.type === "youtube" ? "YouTube" : "Article"} &mdash;{" "}
                     {displayItem.url}
                   </p>
+                  <span
+                    className="inline-block mt-1.5 text-xs px-2 py-0.5 rounded-full font-medium"
+                    style={{
+                      background: displayItem.readMode === "full" ? "var(--accent)" : "var(--bg-card)",
+                      color: displayItem.readMode === "full" ? "#fff" : "var(--text-muted)",
+                      border: displayItem.readMode === "full" ? "none" : "1px solid var(--border-primary)",
+                    }}
+                  >
+                    {displayItem.readMode === "full" ? "Full Read" : "Briefing"}
+                  </span>
                 </div>
                 <div
                   className="rounded-xl p-4 md:p-6"
@@ -287,7 +315,7 @@ export default function Home() {
                     className="text-sm font-semibold uppercase tracking-wider mb-3"
                     style={{ color: "var(--text-muted)" }}
                   >
-                    Summary
+                    {displayItem.readMode === "full" ? "Full Read" : "Briefing"}
                   </h3>
                   <div
                     className="leading-relaxed whitespace-pre-wrap"
