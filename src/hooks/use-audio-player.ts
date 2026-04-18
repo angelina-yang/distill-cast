@@ -221,6 +221,77 @@ export function useAudioPlayer(items: PlaylistItem[], options?: AudioPlayerOptio
 
   const currentItem = currentIndex >= 0 ? items[currentIndex] : null;
 
+  // Media Session API: lock-screen / Bluetooth / notification controls
+  // Lets audio keep playing in the background and shows track info on lock screen
+  useEffect(() => {
+    if (typeof navigator === "undefined" || !("mediaSession" in navigator)) return;
+    if (!currentItem) {
+      navigator.mediaSession.metadata = null;
+      return;
+    }
+
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title: currentItem.title || "Audio Briefing",
+      artist: currentItem.type === "youtube" ? "YouTube" : "Article",
+      album: "TL;Listen",
+      artwork: [
+        { src: "/icon", sizes: "32x32", type: "image/png" },
+      ],
+    });
+
+    navigator.mediaSession.playbackState = isPlaying ? "playing" : "paused";
+  }, [currentItem, isPlaying]);
+
+  // Wire up Media Session action handlers (play/pause/skip/seek from lock screen)
+  useEffect(() => {
+    if (typeof navigator === "undefined" || !("mediaSession" in navigator)) return;
+
+    const handlers: Array<[MediaSessionAction, MediaSessionActionHandler | null]> = [
+      ["play", () => audioRef.current?.play().catch(() => {})],
+      ["pause", () => audioRef.current?.pause()],
+      ["nexttrack", () => skipNext()],
+      ["previoustrack", () => skipPrevious()],
+      ["seekforward", () => skipForward()],
+      ["seekbackward", () => skipBackward()],
+      ["seekto", (details) => {
+        if (details.seekTime != null) seek(details.seekTime);
+      }],
+    ];
+
+    handlers.forEach(([action, handler]) => {
+      try {
+        navigator.mediaSession.setActionHandler(action, handler);
+      } catch {
+        // Action not supported by this browser — ignore
+      }
+    });
+
+    return () => {
+      handlers.forEach(([action]) => {
+        try {
+          navigator.mediaSession.setActionHandler(action, null);
+        } catch {
+          // ignore
+        }
+      });
+    };
+  }, [skipNext, skipPrevious, skipForward, skipBackward, seek]);
+
+  // Update position state for accurate seek-bar on lock screen
+  useEffect(() => {
+    if (typeof navigator === "undefined" || !("mediaSession" in navigator)) return;
+    if (!duration || !isFinite(duration)) return;
+    try {
+      navigator.mediaSession.setPositionState({
+        duration,
+        playbackRate: audioRef.current?.playbackRate || 1,
+        position: Math.min(currentTime, duration),
+      });
+    } catch {
+      // ignore
+    }
+  }, [currentTime, duration]);
+
   return {
     currentIndex,
     currentItem,
