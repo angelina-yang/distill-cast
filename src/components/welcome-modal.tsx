@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { isValidEmail } from "@/lib/email-validation";
 
 interface WelcomeModalProps {
   isOpen: boolean;
@@ -16,8 +17,10 @@ export function WelcomeModal({ isOpen, onComplete }: WelcomeModalProps) {
 
   if (!isOpen) return null;
 
+  const emailOk = isValidEmail(email);
+  const showEmailError = email.length > 0 && !emailOk;
   const canSubmit =
-    name.trim() && email.trim() && email.includes("@") && agreedToTerms && !submitting;
+    name.trim() && emailOk && agreedToTerms && !submitting;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -103,8 +106,16 @@ export function WelcomeModal({ isOpen, onComplete }: WelcomeModalProps) {
               onChange={(e) => setEmail(e.target.value)}
               placeholder="you@example.com"
               className="w-full px-3 py-2.5 rounded-lg text-sm focus:outline-none focus:ring-1"
-              style={inputStyle}
+              style={{
+                ...inputStyle,
+                border: `1px solid ${showEmailError ? "#ef4444" : "var(--border-secondary)"}`,
+              }}
             />
+            {showEmailError && (
+              <p className="text-xs mt-1" style={{ color: "#ef4444" }}>
+                Please enter a valid email address.
+              </p>
+            )}
           </div>
 
           <div className="flex items-start gap-3">
