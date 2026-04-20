@@ -17,8 +17,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Valid name required" }, { status: 400 });
     }
 
-    // 1. Log to Google Sheet (always — captures all signups)
-    // Google Apps Script redirects POST→GET, so we need to follow manually
+    // 1. Log to signup webhook (always — captures all signups)
+    // The webhook redirects POST→GET (302), so we need to follow manually
     const sheetWebhook = process.env.GOOGLE_SHEET_WEBHOOK;
     if (sheetWebhook) {
       try {
@@ -29,8 +29,8 @@ export async function POST(req: NextRequest) {
           source: "tl-listen",
         });
 
-        // Google Apps Script redirects POST to GET (302). We need to
-        // stop the redirect and fetch the redirect URL separately.
+        // The webhook redirects POST to GET (302). We need to stop
+        // the redirect and fetch the redirect URL separately.
         const sheetRes = await fetch(sheetWebhook, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -46,9 +46,9 @@ export async function POST(req: NextRequest) {
           }
         }
 
-        console.log(`[Register] Google Sheet response: ${sheetRes.status}`);
+        console.log(`[Register] Webhook response: ${sheetRes.status}`);
       } catch (sheetErr) {
-        console.error("[Register] Google Sheet logging failed:", sheetErr);
+        console.error("[Register] Webhook logging failed:", sheetErr);
       }
     }
 
