@@ -73,6 +73,14 @@ body {
   transition: background-color 0.2s ease, color 0.2s ease;
 }
 
+/* Readable placeholder text in both themes.
+   Browser defaults render this near-invisible on light backgrounds. */
+input::placeholder,
+textarea::placeholder {
+  color: var(--text-faint);
+  opacity: 1;
+}
+
 /* ─── Animations ─── */
 @keyframes slide-in {
   from { transform: translateX(-100%); }
