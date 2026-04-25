@@ -14,6 +14,7 @@ import { useUser } from "@/hooks/use-user";
 import { useTheme } from "@/hooks/use-theme";
 import { useDraftInstructions } from "@/hooks/use-draft-instructions";
 import { DraftModal } from "@/components/draft-modal";
+import { SupportLinks } from "@/components/support-links";
 
 /** Split summary into sentences for highlighting during playback */
 function splitSentences(text: string): string[] {
@@ -203,6 +204,7 @@ export default function Home() {
             >
               Set up API Keys to get started
             </button>
+            <SupportLinks appName="TL;Listen" className="mt-4 opacity-80" />
           </div>
         </main>
       ) : (
